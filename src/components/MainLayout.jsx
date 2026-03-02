@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
   { key: '/register', icon: <UserAddOutlined />, label: 'Đăng ký TK', roles: ['Executive Management', 'Admin'] },
+  { key: '/proposals', icon: <CarOutlined />, label: 'Đề Xuất Xe', roles: null },
 ];
 
 export default function MainLayout() {

@@ -13,6 +13,8 @@ import DistributionPage from './pages/DistributionPage';
 import TransferFormPage from './pages/TransferFormPage';
 import PendingRequestsPage from './pages/PendingRequestsPage';
 import RegisterPage from './pages/RegisterPage';
+import ProposalListPage from './pages/ProposalListPage';
+import CreateProposalPage from './pages/CreateProposalPage';
 
 export default function App() {
   return (
@@ -33,6 +35,8 @@ export default function App() {
             <Route path="distribution/new" element={<TransferFormPage />} />
             <Route path="pending" element={<PendingRequestsPage />} />
             <Route path="register" element={<RegisterPage />} />
+            <Route path="proposals" element={<ProposalListPage />} />
+            <Route path="/proposals/create" element={<CreateProposalPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

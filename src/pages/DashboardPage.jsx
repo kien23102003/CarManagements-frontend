@@ -6,13 +6,20 @@ import distributionApi from '../api/distributionApi';
 import pendingApi from '../api/pendingApi';
 import { Row, Col, Card, Statistic, Table, Tag, Typography } from 'antd';
 import { CarOutlined, ToolOutlined, SwapOutlined, FileSearchOutlined } from '@ant-design/icons';
-
+import proposalApi from '../api/proposalApi';
+import { ShoppingCartOutlined } from '@ant-design/icons';
 const STATUS_VI = { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Từ chối', InProgress: 'Đang xử lý', Completed: 'Hoàn thành' };
 const STATUS_COLOR = { Pending: 'orange', Approved: 'green', Rejected: 'red', InProgress: 'blue', Completed: 'green' };
 const TYPE_VI = { Routine: 'Định kỳ', Emergency: 'Khẩn cấp', Repair: 'Sửa chữa' };
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ vehicles: 0, maintenance: 0, transfers: 0, pending: 0 });
+  const [stats, setStats] = useState({
+    vehicles: 0,
+    maintenance: 0,
+    transfers: 0,
+    pending: 0,
+    proposals: 0,
+  });
   const [recentMaintenance, setRecentMaintenance] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -21,23 +28,27 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [vRes, mRes, tRes, pRes] = await Promise.allSettled([
+      const [vRes, mRes, tRes, pRes, proposalRes] = await Promise.allSettled([
         vehicleApi.getList(),
         maintenanceApi.getList({ status: 'Pending' }),
         distributionApi.getTransfers({ status: 'Pending' }),
         pendingApi.getList(),
+        proposalApi.getList(),   // 👈 thêm dòng này
       ]);
 
       const vehicles = vRes.status === 'fulfilled' ? (vRes.value.data?.data || vRes.value.data || []) : [];
       const maintenance = mRes.status === 'fulfilled' ? (mRes.value.data?.data || mRes.value.data || []) : [];
       const transfers = tRes.status === 'fulfilled' ? (tRes.value.data?.data || tRes.value.data || []) : [];
       const pending = pRes.status === 'fulfilled' ? (pRes.value.data?.data || pRes.value.data || []) : [];
-
+      const proposals = proposalRes.status === 'fulfilled'
+        ? (proposalRes.value.data?.data || proposalRes.value.data || [])
+        : [];
       setStats({
         vehicles: Array.isArray(vehicles) ? vehicles.length : 0,
         maintenance: Array.isArray(maintenance) ? maintenance.length : 0,
         transfers: Array.isArray(transfers) ? transfers.length : 0,
         pending: Array.isArray(pending) ? pending.length : 0,
+        proposals: Array.isArray(proposals) ? proposals.length : 0, // 👈 thêm
       });
       setRecentMaintenance(Array.isArray(maintenance) ? maintenance.slice(0, 5) : []);
     } catch { /* ignore */ }
