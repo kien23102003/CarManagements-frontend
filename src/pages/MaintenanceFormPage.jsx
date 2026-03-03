@@ -52,16 +52,15 @@ export default function MaintenanceFormPage() {
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/maintenance')} style={{ marginBottom: 16 }}>Quay lại</Button>
       <h2>{isEdit ? 'Cập nhật yêu cầu bảo trì' : 'Tạo yêu cầu bảo trì'}</h2>
       <Card style={{ borderRadius: 12, marginTop: 16 }}>
-        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Routine' }}>
+        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Periodic' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             <Form.Item name="vehicleId" label="Mã xe" rules={[{ required: true, message: 'Vui lòng nhập mã xe' }]}>
               <InputNumber style={{ width: '100%' }} placeholder="Nhập mã xe" />
             </Form.Item>
             <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'Routine', label: 'Định kỳ' },
-                { value: 'Emergency', label: 'Khẩn cấp' },
-                { value: 'Repair', label: 'Sửa chữa' },
+                { value: 'Periodic', label: 'Định kỳ' },
+                { value: 'Breakdown', label: 'Hỏng đột xuất' },
               ]} />
             </Form.Item>
             <Form.Item name="requestDate" label="Ngày yêu cầu">
