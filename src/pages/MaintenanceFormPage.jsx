@@ -5,6 +5,16 @@ import { Card, Form, Input, InputNumber, Select, DatePicker, Button, Spin, messa
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
+const NORMALIZED_MAINTENANCE_TYPE = {
+  Routine: 'Periodic',
+  Emergency: 'Breakdown',
+  Repair: 'Breakdown',
+  Periodic: 'Periodic',
+  Breakdown: 'Breakdown',
+};
+
+const normalizeMaintenanceType = (type) => NORMALIZED_MAINTENANCE_TYPE[type] || 'Periodic';
+
 export default function MaintenanceFormPage() {
   const { id } = useParams();
   const isEdit = !!id;
@@ -22,7 +32,7 @@ export default function MaintenanceFormPage() {
       const m = data.data || data;
       form.setFieldsValue({
         vehicleId: m.vehicleId,
-        maintenanceType: m.maintenanceType || 'Routine',
+        maintenanceType: normalizeMaintenanceType(m.maintenanceType),
         requestDate: m.requestDate ? dayjs(m.requestDate) : null,
         estimatedCost: m.estimatedCost,
         description: m.description,
@@ -36,6 +46,7 @@ export default function MaintenanceFormPage() {
     try {
       const payload = {
         ...values,
+        maintenanceType: normalizeMaintenanceType(values.maintenanceType),
         requestDate: values.requestDate ? values.requestDate.format('YYYY-MM-DD') : null,
       };
       if (isEdit) { await maintenanceApi.update(id, payload); message.success('Cập nhật thành công'); }
@@ -52,16 +63,15 @@ export default function MaintenanceFormPage() {
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/maintenance')} style={{ marginBottom: 16 }}>Quay lại</Button>
       <h2>{isEdit ? 'Cập nhật yêu cầu bảo trì' : 'Tạo yêu cầu bảo trì'}</h2>
       <Card style={{ borderRadius: 12, marginTop: 16 }}>
-        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Routine' }}>
+        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Periodic' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             <Form.Item name="vehicleId" label="Mã xe" rules={[{ required: true, message: 'Vui lòng nhập mã xe' }]}>
               <InputNumber style={{ width: '100%' }} placeholder="Nhập mã xe" />
             </Form.Item>
             <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select options={[
-                { value: 'Routine', label: 'Định kỳ' },
-                { value: 'Emergency', label: 'Khẩn cấp' },
-                { value: 'Repair', label: 'Sửa chữa' },
+                { value: 'Periodic', label: 'Định kỳ' },
+                { value: 'Breakdown', label: 'Sửa chữa/hỏng hóc' },
               ]} />
             </Form.Item>
             <Form.Item name="requestDate" label="Ngày yêu cầu">
