@@ -1,0 +1,431 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import assetApi from '../api/assetApi';
+import { Card, Table, Button, Modal, Form, Input, DatePicker, Select, message, Tag, Space, Popconfirm, Row, Col } from 'antd';
+import { 
+  CarOutlined, 
+  UserOutlined, 
+  CheckCircleOutlined, 
+  CloseCircleOutlined,
+  SwapOutlined,
+  ClockCircleOutlined 
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+
+const { TextArea } = Input;
+const { Option } = Select;
+
+// Status color mapping
+const statusColors = {
+  Available: 'green',
+  Assigned: 'blue',
+  InMaintenance: 'orange',
+  InTransfer: 'purple',
+  Disposed: 'red',
+};
+
+const statusLabels = {
+  Available: 'Sẵn sàng',
+  Assigned: 'Đã phân công',
+  InMaintenance: 'Đang bảo trì',
+  InTransfer: 'Đang điều chuyển',
+  Disposed: 'Đã thanh lý',
+};
+
+export default function VehicleAssignmentPage() {
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [assignModalVisible, setAssignModalVisible] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [assignForm] = Form.useForm();
+  const [assigning, setAssigning] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    loadVehicles();
+  }, []);
+
+  const loadVehicles = async () => {
+    setLoading(true);
+    try {
+      const { data } = await assetApi.getList();
+      setVehicles(data.data || data || []);
+    } catch (err) {
+      message.error('Không thể tải danh sách xe');
+    }
+    setLoading(false);
+  };
+
+  const handleAssignClick = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setAssignModalVisible(true);
+    assignForm.setFieldsValue({
+      assignDate: dayjs(),
+    });
+  };
+
+  const handleUnassignClick = async (vehicle) => {
+    try {
+      await assetApi.unassignVehicle(vehicle.id, {
+        unassignDate: dayjs().format('YYYY-MM-DD'),
+        notes: 'Hủy phân công xe',
+      });
+      message.success('Hủy phân công xe thành công');
+      loadVehicles();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy phân công');
+    }
+  };
+
+  const handleAssignSubmit = async (values) => {
+    setAssigning(true);
+    try {
+      const payload = {
+        driverId: values.driverId,
+        assignDate: values.assignDate ? values.assignDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+        notes: values.notes,
+      };
+
+      await assetApi.assignVehicle(selectedVehicle.id, payload);
+      message.success('Phân công xe thành công');
+      setAssignModalVisible(false);
+      assignForm.resetFields();
+      loadVehicles();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra khi phân công xe');
+    }
+    setAssigning(false);
+  };
+
+  const columns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 60,
+      sorter: (a, b) => a.id - b.id,
+    },
+    {
+      title: 'Biển số',
+      dataIndex: 'licensePlate',
+      key: 'licensePlate',
+      width: 120,
+      render: (text) => <strong>{text}</strong>,
+    },
+    {
+      title: 'Model',
+      dataIndex: 'modelId',
+      key: 'modelId',
+      width: 80,
+    },
+    {
+      title: 'Năm SX',
+      dataIndex: 'yearManufacture',
+      key: 'yearManufacture',
+      width: 80,
+    },
+    {
+      title: 'VIN',
+      dataIndex: 'vin',
+      key: 'vin',
+      width: 150,
+      ellipsis: true,
+    },
+    {
+      title: 'Số máy',
+      dataIndex: 'engineNumber',
+      key: 'engineNumber',
+      width: 120,
+      ellipsis: true,
+    },
+    {
+      title: 'Số khung',
+      dataIndex: 'chassisNumber',
+      key: 'chassisNumber',
+      width: 120,
+      ellipsis: true,
+    },
+    {
+      title: 'Màu',
+      dataIndex: 'color',
+      key: 'color',
+      width: 80,
+    },
+    {
+      title: 'Số chỗ',
+      dataIndex: 'seatCount',
+      key: 'seatCount',
+      width: 70,
+    },
+    {
+      title: 'Nhiên liệu',
+      dataIndex: 'fuelType',
+      key: 'fuelType',
+      width: 100,
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status) => (
+        <Tag color={statusColors[status] || 'default'}>
+          {statusLabels[status] || status}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Tài xế',
+      dataIndex: 'currentDriverId',
+      key: 'currentDriverId',
+      width: 80,
+      render: (driverId) => 
+        driverId ? (
+          <Tag icon={<UserOutlined />} color="blue">
+            ID: {driverId}
+          </Tag>
+        ) : (
+          <span style={{ color: '#999' }}>Chưa có</span>
+        ),
+    },
+    {
+      title: 'Chi nhánh',
+      dataIndex: 'currentBranchId',
+      key: 'currentBranchId',
+      width: 90,
+      render: (branchId) => branchId || '-',
+    },
+    {
+      title: 'Giá trị (VNĐ)',
+      dataIndex: 'currentValue',
+      key: 'currentValue',
+      width: 130,
+      render: (value) => value ? `${value?.toLocaleString('vi-VN')}` : '-',
+    },
+    {
+      title: 'Số km',
+      dataIndex: 'mileage',
+      key: 'mileage',
+      width: 100,
+      render: (mileage) => mileage ? `${mileage.toLocaleString('vi-VN')} km` : '0 km',
+    },
+    {
+      title: 'Hành động',
+      key: 'actions',
+      width: 200,
+      fixed: 'right',
+      render: (_, record) => (
+        <Space>
+          {record.status === 'Available' || !record.currentDriverId ? (
+            <Button
+              type="primary"
+              size="small"
+              icon={<SwapOutlined />}
+              onClick={() => handleAssignClick(record)}
+              disabled={record.status === 'Disposed'}
+            >
+              Phân công
+            </Button>
+          ) : (
+            <Popconfirm
+              title="Hủy phân công xe?"
+              description="Bạn có chắc muốn hủy phân công xe này?"
+              onConfirm={() => handleUnassignClick(record)}
+              okText="Có"
+              cancelText="Hủy"
+            >
+              <Button
+                danger
+                size="small"
+                icon={<CloseCircleOutlined />}
+              >
+                Hủy phân công
+              </Button>
+            </Popconfirm>
+          )}
+          <Button
+            size="small"
+            onClick={() => navigate(`/vehicles/${record.id}`)}
+          >
+            Chi tiết
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  // Filter only available vehicles for quick view
+  const availableCount = vehicles.filter(v => v.status === 'Available').length;
+  const assignedCount = vehicles.filter(v => v.status === 'Assigned').length;
+
+  return (
+    <div style={{ padding: '0 0 24px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <CarOutlined style={{ fontSize: 28, color: '#1890ff' }} />
+          <div>
+            <h2 style={{ margin: 0 }}>Phân công Xe</h2>
+            <p style={{ margin: '4px 0 0 0', color: '#666' }}>
+              Quản lý phân công xe cho tài xế
+            </p>
+          </div>
+        </div>
+        <Space>
+          <Button onClick={() => navigate('/vehicles/new')}>
+            Thêm xe mới
+          </Button>
+          <Button 
+            type="primary" 
+            icon={<CarOutlined />}
+            onClick={() => navigate('/vehicles/asset-create')}
+          >
+            Đăng ký Tài sản
+          </Button>
+        </Space>
+      </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ textAlign: 'center', borderRadius: 12 }}>
+            <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>{availableCount}</div>
+            <div style={{ color: '#666' }}>Xe sẵn sàng</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ textAlign: 'center', borderRadius: 12 }}>
+            <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>{assignedCount}</div>
+            <div style={{ color: '#666' }}>Xe đã phân công</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ textAlign: 'center', borderRadius: 12 }}>
+            <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>
+              {vehicles.filter(v => v.status === 'InMaintenance').length}
+            </div>
+            <div style={{ color: '#666' }}>Đang bảo trì</div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card size="small" style={{ textAlign: 'center', borderRadius: 12 }}>
+            <div style={{ fontSize: 24, fontWeight: 'bold', color: '#666' }}>{vehicles.length}</div>
+            <div style={{ color: '#666' }}>Tổng số xe</div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Card style={{ borderRadius: 12 }}>
+        <Table
+          columns={columns}
+          dataSource={vehicles}
+          rowKey="id"
+          loading={loading}
+          scroll={{ x: 1500 }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `Tổng ${total} xe`,
+          }}
+        />
+      </Card>
+
+      {/* Assign Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SwapOutlined style={{ color: '#1890ff' }} />
+            <span>Phân công Xe</span>
+          </div>
+        }
+        open={assignModalVisible}
+        onCancel={() => {
+          setAssignModalVisible(false);
+          assignForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        {selectedVehicle && (
+          <div style={{ marginBottom: 24 }}>
+            <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
+              <Row gutter={[16, 8]}>
+                <Col span={12}>
+                  <strong>Biển số:</strong> {selectedVehicle.licensePlate}
+                </Col>
+                <Col span={12}>
+                  <strong>Trạng thái:</strong>
+                  <Tag color={statusColors[selectedVehicle.status]}>
+                    {statusLabels[selectedVehicle.status]}
+                  </Tag>
+                </Col>
+                <Col span={12}>
+                  <strong>VIN:</strong> {selectedVehicle.vin || '-'}
+                </Col>
+                <Col span={12}>
+                  <strong>Giá trị:</strong> {selectedVehicle.currentValue?.toLocaleString('vi-VN') || '-'} VNĐ
+                </Col>
+              </Row>
+            </Card>
+          </div>
+        )}
+
+        <Form form={assignForm} layout="vertical" onFinish={handleAssignSubmit}>
+          <Form.Item
+            name="driverId"
+            label="Mã tài xế"
+            rules={[{ required: true, message: 'Vui lòng nhập mã tài xế' }]}
+          >
+            <InputNumber 
+              placeholder="Nhập ID tài xế" 
+              style={{ width: '100%' }} 
+              size="large"
+              min={1}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="assignDate"
+            label="Ngày phân công"
+            rules={[{ required: true, message: 'Vui lòng chọn ngày phân công' }]}
+          >
+            <DatePicker 
+              style={{ width: '100%' }} 
+              size="large" 
+              format="YYYY-MM-DD"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="notes"
+            label="Ghi chú"
+          >
+            <TextArea 
+              rows={4} 
+              placeholder="Ghi chú về việc phân công..."
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+            <Button 
+              onClick={() => {
+                setAssignModalVisible(false);
+                assignForm.resetFields();
+              }}
+            >
+              Hủy
+            </Button>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              loading={assigning}
+              icon={<CheckCircleOutlined />}
+            >
+              Xác nhận phân công
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
