@@ -7,7 +7,7 @@ import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined } from '@ant
 
 const TRANG_THAI = { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Từ chối', InProgress: 'Đang xử lý', Completed: 'Hoàn thành' };
 const TRANG_THAI_MAU = { Pending: 'orange', Approved: 'green', Rejected: 'red', InProgress: 'blue', Completed: 'green' };
-const LOAI_BT = { Routine: 'Định kỳ', Emergency: 'Khẩn cấp', Repair: 'Sửa chữa' };
+const LOAI_BT = { Periodic: 'Định kỳ', Breakdown: 'Hỏng đột xuất' };
 
 export default function MaintenanceListPage() {
   const [items, setItems] = useState([]);
