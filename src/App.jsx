@@ -13,6 +13,7 @@ import DistributionPage from './pages/DistributionPage';
 import TransferFormPage from './pages/TransferFormPage';
 import PendingRequestsPage from './pages/PendingRequestsPage';
 import RegisterPage from './pages/RegisterPage';
+import VehicleCostStatsPage from './pages/VehicleCostStatsPage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="distribution/new" element={<TransferFormPage />} />
             <Route path="pending" element={<PendingRequestsPage />} />
             <Route path="register" element={<RegisterPage />} />
+            <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

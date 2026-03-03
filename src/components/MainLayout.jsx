@@ -13,6 +13,7 @@ import {
   UserAddOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
@@ -20,6 +21,7 @@ const { Sider, Header, Content } = Layout;
 const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan', roles: null },
   { key: '/vehicles', icon: <CarOutlined />, label: 'Quản lý xe', roles: null },
+  { key: '/vehicle-stats', icon: <BarChartOutlined />, label: 'Thống kê chi phí', roles: null },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
