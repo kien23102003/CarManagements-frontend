@@ -120,135 +120,139 @@ export default function ProposalListPage() {
     };
 
     const columns = [
-        {
-            title: 'Mã',
-            dataIndex: 'id',
-            sorter: (a, b) => a.id - b.id,
-            render: (id) => <b>#{id}</b>,
-        },
-        {
-            title: 'Ngày tạo',
-            dataIndex: 'createdDate',
-            sorter: (a, b) =>
-                dayjs(a.createdDate).unix() -
-                dayjs(b.createdDate).unix(),
-            render: (date) =>
-                date ? dayjs(date).format('DD/MM/YYYY') : '-',
-        },
-        {
-            title: 'Chi phí',
-            dataIndex: 'proposedCost',
-            sorter: (a, b) => a.proposedCost - b.proposedCost,
-            render: (cost) =>
-                cost
-                    ? cost.toLocaleString('vi-VN') + ' đ'
-                    : '0 đ',
-        },
-        {
-            title: 'Mô tả',
-            dataIndex: 'description',
-            render: (text) => {
-                if (!text) return '-';
+    {
+        title: 'Mã',
+        dataIndex: 'id',
+        sorter: (a, b) => a.id - b.id,
+        render: (id) => <b>#{id}</b>,
+    },
+    {
+        title: 'Ngày tạo',
+        dataIndex: 'createdDate',
+        sorter: (a, b) =>
+            dayjs(a.createdDate).unix() -
+            dayjs(b.createdDate).unix(),
+        render: (date) =>
+            date ? dayjs(date).format('DD/MM/YYYY') : '-',
+    },
+    {
+        title: 'Chi phí',
+        dataIndex: 'proposedCost',
+        sorter: (a, b) => a.proposedCost - b.proposedCost,
+        render: (cost) =>
+            cost
+                ? cost.toLocaleString('vi-VN') + ' đ'
+                : '0 đ',
+    },
+    {
+        title: 'Mô tả',
+        dataIndex: 'description',
+        render: (text) => {
+            if (!text) return '-';
 
-                const [main, rejectedPart] = text.split('\nRejected:');
+            const [main, rejectedPart] = text.split('\nRejected:');
 
-                return (
-                    <div>
-                        <div>{main}</div>
+            return (
+                <div>
+                    <div>{main}</div>
 
-                        {rejectedPart && (
-                            <div
-                                style={{
-                                    marginTop: 6,
-                                    padding: '6px 10px',
-                                    background: '#fff2f0',
-                                    border: '1px solid #ffccc7',
-                                    borderRadius: 6,
-                                    color: '#cf1322',
-                                    fontSize: 13,
-                                }}
-                            >
-                                <b>Lý do từ chối:</b> {rejectedPart.trim()}
-                            </div>
-                        )}
-                    </div>
-                );
-            },
-        },
-        {
-            title: 'Trạng thái',
-            dataIndex: 'status',
-            filters: Object.keys(STATUS_CONFIG).map((key) => ({
-                text: STATUS_CONFIG[key].label,
-                value: key,
-            })),
-            onFilter: (value, record) =>
-                record.status === value,
-            render: (status) => {
-                const config = STATUS_CONFIG[status] || {
-                    label: status,
-                    color: 'default',
-                };
-
-                return (
-                    <Tag
-                        color={config.color}
-                        style={{
-                            borderRadius: 20,
-                            padding: '4px 12px',
-                            fontWeight: 500,
-                        }}
-                    >
-                        {config.label}
-                    </Tag>
-                );
-            },
-        },
-        {
-            title: 'Hành động',
-            render: (_, record) => (
-                <Space>
-                    {record.status === 'Pending' && (
-                        <>
-                            <Button
-                                size="small"
-                                type="primary"
-                                icon={<CheckOutlined />}
-                                onClick={() => handleApprove(record.id)}
-                            >
-                                Duyệt
-                            </Button>
-
-                            <Button
-                                size="small"
-                                danger
-                                icon={<CloseOutlined />}
-                                onClick={() => {
-                                    setSelectedId(record.id);
-                                    setRejectModalOpen(true);
-                                }}
-                            >
-                                Từ chối
-                            </Button>
-                        </>
-                    )}
-
-                    <Popconfirm
-                        title="Xoá đề xuất này?"
-                        onConfirm={() => handleDelete(record.id)}
-                    >
-                        <Button
-                            size="small"
-                            danger
-                            icon={<DeleteOutlined />}
+                    {rejectedPart && (
+                        <div
+                            style={{
+                                marginTop: 6,
+                                padding: '6px 10px',
+                                background: '#fff2f0',
+                                border: '1px solid #ffccc7',
+                                borderRadius: 6,
+                                color: '#cf1322',
+                                fontSize: 13,
+                            }}
                         >
-                            Xoá
-                        </Button>
-                    </Popconfirm>
-                </Space>
-            ),
+                            <b>Lý do từ chối:</b> {rejectedPart.trim()}
+                        </div>
+                    )}
+                </div>
+            );
         },
-    ];
+    },
+    {
+        title: 'Trạng thái',
+        dataIndex: 'status',
+        render: (status) => {
+            const config = STATUS_CONFIG[status] || {
+                label: status,
+                color: 'default',
+            };
+
+            return (
+                <Tag
+                    color={config.color}
+                    style={{
+                        borderRadius: 20,
+                        padding: '4px 12px',
+                        fontWeight: 500,
+                    }}
+                >
+                    {config.label}
+                </Tag>
+            );
+        },
+    },
+
+    {
+    title: 'Hành động',
+    key: 'actions',
+    align: 'center',
+    width: 300,
+    render: (_, record) => {
+        const disabled =
+            record.status === 'Approved' ||
+            record.status === 'Rejected';
+
+        return (
+            <Space>
+                <Button
+                    size="small"
+                    type="primary"
+                    icon={<CheckOutlined />}
+                    disabled={disabled}
+                    onClick={() => handleApprove(record.id)}
+                >
+                    Duyệt
+                </Button>
+
+                <Button
+                    size="small"
+                    danger
+                    icon={<CloseOutlined />}
+                    disabled={disabled}
+                    onClick={() => {
+                        setSelectedId(record.id);
+                        setRejectModalOpen(true);
+                    }}
+                >
+                    Từ chối
+                </Button>
+
+                <Popconfirm
+                    title="Hủy đề xuất này?"
+                    onConfirm={() => handleDelete(record.id)}
+                    disabled={disabled}
+                >
+                    <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        disabled={disabled}
+                    >
+                        Hủy
+                    </Button>
+                </Popconfirm>
+            </Space>
+        );
+    },
+}
+];
 
     return (
         <Card
