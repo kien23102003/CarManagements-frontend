@@ -13,6 +13,7 @@ import DistributionPage from './pages/DistributionPage';
 import TransferFormPage from './pages/TransferFormPage';
 import PendingRequestsPage from './pages/PendingRequestsPage';
 import RegisterPage from './pages/RegisterPage';
+import VehicleCostStatsPage from './pages/VehicleCostStatsPage';
 import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
 import AssetCreatePage from './pages/AssetCreatePage';
@@ -27,11 +28,11 @@ export default function App() {
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
-          <Route path="vehicles" element={<VehicleListPage />} />
-          <Route path="vehicles/new" element={<VehicleFormPage />} />
-          <Route path="vehicles/:id" element={<VehicleFormPage />} />
-          <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
-          <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
+            <Route path="vehicles" element={<VehicleListPage />} />
+            <Route path="vehicles/new" element={<VehicleFormPage />} />
+            <Route path="vehicles/:id" element={<VehicleFormPage />} />
+            <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
+            <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
             <Route path="maintenance" element={<MaintenanceListPage />} />
             <Route path="maintenance/new" element={<MaintenanceFormPage />} />
             <Route path="maintenance/:id" element={<MaintenanceFormPage />} />
@@ -39,8 +40,9 @@ export default function App() {
             <Route path="distribution/new" element={<TransferFormPage />} />
             <Route path="pending" element={<PendingRequestsPage />} />
             <Route path="register" element={<RegisterPage />} />
+            <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
             <Route path="proposals" element={<ProposalListPage />} />
-            <Route path="/proposals/create" element={<CreateProposalPage />} />
+            <Route path="proposals/create" element={<CreateProposalPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

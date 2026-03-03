@@ -13,6 +13,7 @@ import {
   UserAddOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  BarChartOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
       { key: '/vehicles/assignment', label: 'Phân công xe' },
     ]
   },
+  { key: '/vehicle-stats', icon: <BarChartOutlined />, label: 'Thống kê chi phí', roles: null },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
@@ -47,30 +49,25 @@ export default function MainLayout() {
   const { token: themeToken } = theme.useToken();
 
   const userRoles = user?.roles || [];
-  
-  // Helper function to filter children by role
-  const filterChildrenByRole = (children) => {
-    if (!children) return undefined;
-    return children.filter((child) => !child.roles || child.roles.some((r) => userRoles.includes(r)));
+
+  // Build menu items with role filtering, supporting children
+  const buildMenuItems = (items) => {
+    return items
+      .filter((item) => !item.roles || item.roles.some((r) => userRoles.includes(r)))
+      .map(({ key, icon, label, children }) => {
+        if (children) {
+          const filteredChildren = children
+            .filter((child) => !child.roles || child.roles.some((r) => userRoles.includes(r)))
+            .map(({ key, label }) => ({ key, label }));
+          if (filteredChildren.length === 0) return null;
+          return { key, icon, label, children: filteredChildren };
+        }
+        return { key, icon, label };
+      })
+      .filter(Boolean);
   };
 
-  const menuItems = NAV_ITEMS
-    .filter((item) => !item.roles || item.roles.some((r) => userRoles.includes(r)))
-    .map(({ key, icon, label, children }) => {
-      const filteredChildren = filterChildrenByRole(children);
-      if (filteredChildren && filteredChildren.length > 0) {
-        return {
-          key,
-          icon,
-          label,
-          children: filteredChildren.map((child) => ({
-            key: child.key,
-            label: child.label,
-          })),
-        };
-      }
-      return { key, icon, label };
-    });
+  const menuItems = buildMenuItems(NAV_ITEMS);
 
   const handleLogout = async () => {
     await logout();
