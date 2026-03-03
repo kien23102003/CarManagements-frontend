@@ -14,13 +14,25 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BarChartOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
 
 const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan', roles: null },
-  { key: '/vehicles', icon: <CarOutlined />, label: 'Quản lý xe', roles: null },
+  { 
+    key: '/vehicles', 
+    icon: <CarOutlined />, 
+    label: 'Quản lý xe', 
+    roles: null,
+    children: [
+      { key: '/vehicles', label: 'Danh sách xe' },
+      { key: '/vehicles/new', label: 'Thêm xe mới', roles: ['Branch Asset Accountant'] },
+      { key: '/vehicles/asset-create', label: 'Đăng ký Tài sản', roles: ['Branch Asset Accountant'] },
+      { key: '/vehicles/assignment', label: 'Phân công xe' },
+    ]
+  },
   { key: '/vehicle-stats', icon: <BarChartOutlined />, label: 'Thống kê chi phí', roles: null },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
@@ -36,9 +48,25 @@ export default function MainLayout() {
   const { token: themeToken } = theme.useToken();
 
   const userRoles = user?.roles || [];
-  const menuItems = NAV_ITEMS
-    .filter((item) => !item.roles || item.roles.some((r) => userRoles.includes(r)))
-    .map(({ key, icon, label }) => ({ key, icon, label }));
+
+  // Build menu items with role filtering, supporting children
+  const buildMenuItems = (items) => {
+    return items
+      .filter((item) => !item.roles || item.roles.some((r) => userRoles.includes(r)))
+      .map(({ key, icon, label, children }) => {
+        if (children) {
+          const filteredChildren = children
+            .filter((child) => !child.roles || child.roles.some((r) => userRoles.includes(r)))
+            .map(({ key, label }) => ({ key, label }));
+          if (filteredChildren.length === 0) return null;
+          return { key, icon, label, children: filteredChildren };
+        }
+        return { key, icon, label };
+      })
+      .filter(Boolean);
+  };
+
+  const menuItems = buildMenuItems(NAV_ITEMS);
 
   const handleLogout = async () => {
     await logout();
