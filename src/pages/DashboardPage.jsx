@@ -10,7 +10,13 @@ import proposalApi from '../api/proposalApi';
 import { ShoppingCartOutlined } from '@ant-design/icons';
 const STATUS_VI = { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Từ chối', InProgress: 'Đang xử lý', Completed: 'Hoàn thành' };
 const STATUS_COLOR = { Pending: 'orange', Approved: 'green', Rejected: 'red', InProgress: 'blue', Completed: 'green' };
-const TYPE_VI = { Routine: 'Định kỳ', Emergency: 'Khẩn cấp', Repair: 'Sửa chữa' };
+const TYPE_VI = {
+  Periodic: 'Định kỳ',
+  Breakdown: 'Sửa chữa/hỏng hóc',
+  Routine: 'Định kỳ',
+  Emergency: 'Sửa chữa/hỏng hóc',
+  Repair: 'Sửa chữa/hỏng hóc',
+};
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({

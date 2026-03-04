@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import assetApi from '../api/assetApi';
-import { Card, Table, Button, Modal, Form, Input, DatePicker, Select, message, Tag, Space, Popconfirm, Row, Col } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tag, Space, Popconfirm, Row, Col } from 'antd';
 import { 
   CarOutlined, 
   UserOutlined, 
@@ -18,6 +18,7 @@ const { Option } = Select;
 // Status color mapping
 const statusColors = {
   Available: 'green',
+  Active: 'green',
   Assigned: 'blue',
   InMaintenance: 'orange',
   InTransfer: 'purple',
@@ -26,6 +27,7 @@ const statusColors = {
 
 const statusLabels = {
   Available: 'Sẵn sàng',
+  Active: 'Sẵn sàng',
   Assigned: 'Đã phân công',
   InMaintenance: 'Đang bảo trì',
   InTransfer: 'Đang điều chuyển',
@@ -39,11 +41,22 @@ export default function VehicleAssignmentPage() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [assignForm] = Form.useForm();
   const [assigning, setAssigning] = useState(false);
+  const [drivers, setDrivers] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadVehicles();
+    loadDrivers();
   }, []);
+
+  const loadDrivers = async () => {
+    try {
+      const { data } = await assetApi.getDrivers();
+      setDrivers(data.data || data || []);
+    } catch (err) {
+      console.error('Error loading drivers:', err);
+    }
+  };
 
   const loadVehicles = async () => {
     setLoading(true);
@@ -104,6 +117,7 @@ export default function VehicleAssignmentPage() {
       key: 'id',
       width: 60,
       sorter: (a, b) => a.id - b.id,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Biển số',
@@ -111,18 +125,22 @@ export default function VehicleAssignmentPage() {
       key: 'licensePlate',
       width: 120,
       render: (text) => <strong>{text}</strong>,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Model',
-      dataIndex: 'modelId',
-      key: 'modelId',
-      width: 80,
+      dataIndex: 'modelName',
+      key: 'modelName',
+      width: 100,
+      render: (text, record) => text || record.manufacturer || '-',
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Năm SX',
       dataIndex: 'yearManufacture',
       key: 'yearManufacture',
       width: 80,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'VIN',
@@ -130,6 +148,7 @@ export default function VehicleAssignmentPage() {
       key: 'vin',
       width: 150,
       ellipsis: true,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Số máy',
@@ -137,6 +156,7 @@ export default function VehicleAssignmentPage() {
       key: 'engineNumber',
       width: 120,
       ellipsis: true,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Số khung',
@@ -144,56 +164,66 @@ export default function VehicleAssignmentPage() {
       key: 'chassisNumber',
       width: 120,
       ellipsis: true,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Màu',
       dataIndex: 'color',
       key: 'color',
       width: 80,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Số chỗ',
       dataIndex: 'seatCount',
       key: 'seatCount',
       width: 70,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Nhiên liệu',
       dataIndex: 'fuelType',
       key: 'fuelType',
       width: 100,
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status) => (
-        <Tag color={statusColors[status] || 'default'}>
-          {statusLabels[status] || status}
-        </Tag>
-      ),
+      render: (status) => {
+        const normalizedStatus = status === 'Active' ? 'Available' : status;
+        return (
+          <Tag color={statusColors[normalizedStatus] || 'default'}>
+            {statusLabels[normalizedStatus] || status}
+          </Tag>
+        );
+      },
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Tài xế',
-      dataIndex: 'currentDriverId',
-      key: 'currentDriverId',
-      width: 80,
-      render: (driverId) => 
-        driverId ? (
+      dataIndex: 'currentDriverName',
+      key: 'currentDriverName',
+      width: 120,
+      render: (driverName) => 
+        driverName ? (
           <Tag icon={<UserOutlined />} color="blue">
-            ID: {driverId}
+            {driverName}
           </Tag>
         ) : (
-          <span style={{ color: '#999' }}>Chưa có</span>
+          <span style={{ color: '#999' }}>—</span>
         ),
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Chi nhánh',
-      dataIndex: 'currentBranchId',
-      key: 'currentBranchId',
-      width: 90,
-      render: (branchId) => branchId || '-',
+      dataIndex: 'currentBranchName',
+      key: 'currentBranchName',
+      width: 120,
+      render: (branchName) => branchName || '—',
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Giá trị (VNĐ)',
@@ -201,6 +231,7 @@ export default function VehicleAssignmentPage() {
       key: 'currentValue',
       width: 130,
       render: (value) => value ? `${value?.toLocaleString('vi-VN')}` : '-',
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Số km',
@@ -208,21 +239,31 @@ export default function VehicleAssignmentPage() {
       key: 'mileage',
       width: 100,
       render: (mileage) => mileage ? `${mileage.toLocaleString('vi-VN')} km` : '0 km',
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Hành động',
       key: 'actions',
-      width: 200,
+      width: 160,
       fixed: 'right',
+      onCell: () => ({
+        style: {
+          position: 'sticky',
+          right: 0,
+          background: '#fff',
+          zIndex: 1,
+          padding: '16px 12px',
+        },
+      }),
       render: (_, record) => (
-        <Space>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {record.status === 'Available' || !record.currentDriverId ? (
             <Button
               type="primary"
-              size="small"
-              icon={<SwapOutlined />}
               onClick={() => handleAssignClick(record)}
               disabled={record.status === 'Disposed'}
+              style={{ height: 40, borderRadius: 8, fontSize: 14, fontWeight: 500 }}
+              icon={<SwapOutlined />}
             >
               Phân công
             </Button>
@@ -236,7 +277,7 @@ export default function VehicleAssignmentPage() {
             >
               <Button
                 danger
-                size="small"
+                style={{ height: 40, borderRadius: 8, fontSize: 14, fontWeight: 500 }}
                 icon={<CloseCircleOutlined />}
               >
                 Hủy phân công
@@ -244,12 +285,12 @@ export default function VehicleAssignmentPage() {
             </Popconfirm>
           )}
           <Button
-            size="small"
             onClick={() => navigate(`/vehicles/${record.id}`)}
+            style={{ height: 40, borderRadius: 8, fontSize: 14, fontWeight: 500 }}
           >
             Chi tiết
           </Button>
-        </Space>
+        </div>
       ),
     },
   ];
@@ -371,14 +412,20 @@ export default function VehicleAssignmentPage() {
         <Form form={assignForm} layout="vertical" onFinish={handleAssignSubmit}>
           <Form.Item
             name="driverId"
-            label="Mã tài xế"
-            rules={[{ required: true, message: 'Vui lòng nhập mã tài xế' }]}
+            label="Tài xế"
+            rules={[{ required: true, message: 'Vui lòng chọn tài xế' }]}
           >
-            <InputNumber 
-              placeholder="Nhập ID tài xế" 
-              style={{ width: '100%' }} 
+            <Select 
+              placeholder="Chọn tài xế" 
               size="large"
-              min={1}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={drivers.map(d => ({
+                value: d.id,
+                label: d.name
+              }))}
             />
           </Form.Item>
 

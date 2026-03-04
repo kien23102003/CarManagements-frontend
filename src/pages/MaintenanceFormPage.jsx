@@ -6,6 +6,16 @@ import { Card, Form, Input, InputNumber, Select, DatePicker, Button, Spin, messa
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
+const NORMALIZED_MAINTENANCE_TYPE = {
+  Routine: 'Periodic',
+  Emergency: 'Breakdown',
+  Repair: 'Breakdown',
+  Periodic: 'Periodic',
+  Breakdown: 'Breakdown',
+};
+
+const normalizeMaintenanceType = (type) => NORMALIZED_MAINTENANCE_TYPE[type] || 'Periodic';
+
 export default function MaintenanceFormPage() {
   const { id } = useParams();
   const isEdit = !!id;
@@ -35,7 +45,7 @@ export default function MaintenanceFormPage() {
       const m = data.data || data;
       form.setFieldsValue({
         vehicleId: m.vehicleId,
-        maintenanceType: m.maintenanceType || 'Routine',
+        maintenanceType: normalizeMaintenanceType(m.maintenanceType),
         requestDate: m.requestDate ? dayjs(m.requestDate) : null,
         estimatedCost: m.estimatedCost,
         description: m.description,
@@ -49,6 +59,7 @@ export default function MaintenanceFormPage() {
     try {
       const payload = {
         ...values,
+        maintenanceType: normalizeMaintenanceType(values.maintenanceType),
         requestDate: values.requestDate ? values.requestDate.format('YYYY-MM-DD') : null,
       };
       if (isEdit) { await maintenanceApi.update(id, payload); message.success('Cập nhật thành công'); }
@@ -81,7 +92,7 @@ export default function MaintenanceFormPage() {
             <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select options={[
                 { value: 'Periodic', label: 'Định kỳ' },
-                { value: 'Breakdown', label: 'Hỏng đột xuất' },
+                { value: 'Breakdown', label: 'Sửa chữa/hỏng hóc' },
               ]} />
             </Form.Item>
             <Form.Item name="requestDate" label="Ngày yêu cầu">
