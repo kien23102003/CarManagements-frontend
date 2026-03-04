@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import assetApi from '../api/assetApi';
-import { Card, Form, Input, InputNumber, Select, DatePicker, Button, message, Divider, Row, Col } from 'antd';
+import { Card, Form, Input, InputNumber, Select, DatePicker, Button, message, Divider, Row, Col, Spin } from 'antd';
 import { ArrowLeftOutlined, CarOutlined, SafetyCertificateOutlined, InsuranceOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -11,9 +11,56 @@ const { Option } = Select;
 export default function AssetCreatePage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [fetchingData, setFetchingData] = useState(true);
   const navigate = useNavigate();
 
+  // State for dropdown data
+  const [vehicleModels, setVehicleModels] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+
+  // Fetch dropdown data on mount
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [modelsRes, branchesRes, driversRes] = await Promise.all([
+          assetApi.getVehicleModels(),
+          assetApi.getBranches(),
+          assetApi.getDrivers()
+        ]);
+
+        // Handle different response structures - API returns data directly or wrapped
+        let modelsData = [];
+        let branchesData = [];
+        let driversData = [];
+
+        // Check if response has data property (axios response)
+        if (modelsRes?.data) {
+          modelsData = Array.isArray(modelsRes.data) ? modelsRes.data : (modelsRes.data.data || []);
+        }
+        if (branchesRes?.data) {
+          branchesData = Array.isArray(branchesRes.data) ? branchesRes.data : (branchesRes.data.data || []);
+        }
+        if (driversRes?.data) {
+          driversData = Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data.data || []);
+        }
+
+        setVehicleModels(modelsData);
+        setBranches(branchesData);
+        setDrivers(driversData);
+      } catch (err) {
+        console.error('Error fetching dropdown data:', err);
+        message.error('Không thể tải dữ liệu dropdown');
+      } finally {
+        setFetchingData(false);
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
+
   const handleSubmit = async (values) => {
+    console.log('Form submitted with values:', values);
     setLoading(true);
     try {
       const payload = {
@@ -27,14 +74,30 @@ export default function AssetCreatePage() {
         warrantyExpiryDate: values.warrantyExpiryDate ? values.warrantyExpiryDate.format('YYYY-MM-DD') : null,
       };
 
+      console.log('Submitting payload:', payload);
       await assetApi.createAsset(payload);
       message.success('Tạo tài sản xe thành công!');
       navigate('/vehicles');
     } catch (err) {
+      console.error('Error creating asset:', err);
       message.error(err.response?.data?.message || 'Có lỗi xảy ra khi tạo tài sản');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  const handleFormFailed = (errorInfo) => {
+    console.log('Form validation failed:', errorInfo);
+    message.error('Vui lòng kiểm tra lại thông tin nhập');
+  };
+
+  if (fetchingData) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <Spin size="large" description="Đang tải dữ liệu..." />
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -47,12 +110,17 @@ export default function AssetCreatePage() {
         <h2 style={{ margin: 0 }}>Đăng ký Tài sản Xe mới</h2>
       </div>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <CarOutlined style={{ color: '#1890ff' }} />
-          <h3 style={{ margin: 0 }}>Thông tin Xe cơ bản</h3>
-        </div>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form 
+        form={form} 
+        layout="vertical" 
+        onFinish={handleSubmit}
+        onFinishFailed={handleFormFailed}
+      >
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <CarOutlined style={{ color: '#1890ff' }} />
+            <h3 style={{ margin: 0 }}>Thông tin Xe cơ bản</h3>
+          </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
@@ -66,10 +134,22 @@ export default function AssetCreatePage() {
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
                 name="modelId" 
-                label="Mã dòng xe" 
-                rules={[{ required: true, message: 'Vui lòng nhập mã dòng xe' }]}
+                label="Dòng xe" 
+                rules={[{ required: true, message: 'Vui lòng chọn dòng xe' }]}
               >
-                <InputNumber placeholder="VD: 1" style={{ width: '100%' }} size="large" min={1} />
+                <Select 
+                  placeholder="Chọn dòng xe" 
+                  size="large"
+                  style={{ width: '100%' }}
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={vehicleModels.map(m => ({
+                    value: m.id || m.Id,
+                    label: `${m.manufacturer || m.Manufacturer || 'Unknown'} - ${m.modelName || m.ModelName || 'Unknown'}`
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -119,15 +199,13 @@ export default function AssetCreatePage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
+        </Card>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
-          <h3 style={{ margin: 0 }}>Định danh Xe (Bắt buộc)</h3>
-        </div>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <SafetyCertificateOutlined style={{ color: '#52c41a' }} />
+            <h3 style={{ margin: 0 }}>Định danh Xe (Bắt buộc)</h3>
+          </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
@@ -158,15 +236,13 @@ export default function AssetCreatePage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
+        </Card>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <FileTextOutlined style={{ color: '#faad14' }} />
-          <h3 style={{ margin: 0 }}>Đăng ký Xe</h3>
-        </div>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <FileTextOutlined style={{ color: '#faad14' }} />
+            <h3 style={{ margin: 0 }}>Đăng ký Xe</h3>
+          </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
@@ -223,15 +299,13 @@ export default function AssetCreatePage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
+        </Card>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <InsuranceOutlined style={{ color: '#eb2f96' }} />
-          <h3 style={{ margin: 0 }}>Bảo hiểm / Bảo hành</h3>
-        </div>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <InsuranceOutlined style={{ color: '#eb2f96' }} />
+            <h3 style={{ margin: 0 }}>Bảo hiểm / Bảo hành</h3>
+          </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
@@ -296,12 +370,10 @@ export default function AssetCreatePage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
+        </Card>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <h3 style={{ margin: '0 0 16px 0' }}>Giá trị Tài sản</h3>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 16px 0' }}>Giá trị Tài sản</h3>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Form.Item 
@@ -352,7 +424,20 @@ export default function AssetCreatePage() {
                 name="currentBranchId" 
                 label="Chi nhánh quản lý"
               >
-                <InputNumber placeholder="Mã chi nhánh" style={{ width: '100%' }} size="large" min={1} />
+                <Select 
+                  placeholder="Chọn chi nhánh" 
+                  size="large"
+                  style={{ width: '100%' }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={branches.map(b => ({
+                    value: b.id || b.Id,
+                    label: b.name || b.Name || 'Unknown'
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -360,7 +445,20 @@ export default function AssetCreatePage() {
                 name="currentDriverId" 
                 label="Tài xế hiện tại"
               >
-                <InputNumber placeholder="Mã tài xế" style={{ width: '100%' }} size="large" min={1} />
+                <Select 
+                  placeholder="Chọn tài xế" 
+                  size="large"
+                  style={{ width: '100%' }}
+                  allowClear
+                  showSearch
+                  filterOption={(input, option) =>
+                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={drivers.map(d => ({
+                    value: d.id || d.Id,
+                    label: d.name || d.Name || 'Unknown'
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -379,27 +477,25 @@ export default function AssetCreatePage() {
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
+        </Card>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-        <h3 style={{ margin: '0 0 16px 0' }}>Ghi chú</h3>
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 16px 0' }}>Ghi chú</h3>
           <Form.Item 
             name="notes" 
             label="Ghi chú chung"
           >
             <TextArea rows={3} placeholder="Ghi chú thêm về tài sản..." maxLength={1000} showCount />
           </Form.Item>
-        </Form>
-      </Card>
+        </Card>
+      </Form>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginBottom: 24 }}>
         <Button size="large" onClick={() => navigate('/vehicles')}>Huỷ</Button>
         <Button 
           type="primary" 
           size="large" 
-          htmlType="submit" 
+          onClick={() => form.submit()}
           loading={loading}
           icon={<CarOutlined />}
         >

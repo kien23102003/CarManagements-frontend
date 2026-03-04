@@ -24,6 +24,20 @@ const assetApi = {
   // Get available vehicles only
   getAvailableVehicles: () =>
     axiosClient.get('/assets/vehicles', { params: { status: 'Available' } }),
+
+  // ===== DROPDOWN DATA ENDPOINTS =====
+  
+  // Get vehicle models for dropdown
+  getVehicleModels: () =>
+    axiosClient.get('/assets/vehicles/models'),
+
+  // Get branches for dropdown
+  getBranches: () =>
+    axiosClient.get('/assets/vehicles/branches'),
+
+  // Get drivers for dropdown
+  getDrivers: () =>
+    axiosClient.get('/assets/vehicles/drivers'),
 };
 
 export default assetApi;
