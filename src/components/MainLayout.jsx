@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
-  { key: '/register', icon: <UserAddOutlined />, label: 'Đăng ký TK', roles: ['Executive Management', 'Admin'] },
+  { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },
   { key: '/proposals', icon: <CarOutlined />, label: 'Đề Xuất Xe', roles: null },
 ];
 
