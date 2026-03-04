@@ -2,8 +2,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import maintenanceApi from '../api/maintenanceApi';
-import { App, Table, Tag, Button, Select, Space, Popconfirm, Modal, Form, Input } from 'antd';
-import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Select, Space, Popconfirm, message } from 'antd';
+import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
   Pending: 'Chờ duyệt',
@@ -44,9 +44,8 @@ export default function MaintenanceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const roles = user?.roles || [];
-  const normalizedRoles = roles.map((r) => String(r).replace(/\s+/g, '').toLowerCase());
-  const isAccountant = normalizedRoles.includes('branchassetaccountant');
-  const isOperator = normalizedRoles.includes('operator');
+  const isAccountant = roles.includes('Branch Asset Accountant');
+  const isOperator = roles.includes('Operator');
 
   useEffect(() => {
     loadData();
@@ -124,6 +123,14 @@ export default function MaintenanceListPage() {
     }
   };
 
+  const handleComplete = async (id) => {
+    try {
+      await maintenanceApi.update(id, { status: 'Completed', completionDate: new Date().toISOString().split('T')[0] });
+      message.success('Đã hoàn thành bảo trì');
+      loadData();
+    } catch (err) { message.error(err.response?.data?.message || 'Có lỗi'); }
+  };
+
   const columns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
     { title: 'Loại', dataIndex: 'maintenanceType', key: 'type', render: (v) => LOAI_BT[v] || v },
@@ -131,30 +138,30 @@ export default function MaintenanceListPage() {
     { title: 'Chi phí ước tính', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
     { title: 'Ngày yêu cầu', dataIndex: 'requestDate', key: 'date', render: (v) => v || '—' },
     {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
-    },
-    {
-      title: 'Hành động',
-      key: 'action',
-      width: 220,
+      title: 'Hành động', key: 'action', width: 260,
       render: (_, m) => (
         <Space>
           {isOperator && m.status === 'Pending' && (
             <Button size="small" onClick={() => navigate(`/maintenance/${m.id}`)}>Sửa</Button>
           )}
-
+          {isOperator && m.status === 'Approved' && (
+            <Popconfirm title="Xác nhận hoàn thành bảo trì?" onConfirm={() => handleComplete(m.id)}>
+              <Button size="small" type="primary" icon={<PlayCircleOutlined />}>Thực hiện</Button>
+            </Popconfirm>
+          )}
           {isAccountant && m.status === 'Pending' && (
             <>
-              <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => openApprovalModal(m.id, 'Approved')} />
-              <Button size="small" danger icon={<CloseOutlined />} onClick={() => openApprovalModal(m.id, 'Rejected')} />
+              <Popconfirm title="Duyệt yêu cầu này?" onConfirm={() => handleApproval(m.id, 'Approved')}>
+                <Button size="small" type="primary" icon={<CheckOutlined />}>Duyệt</Button>
+              </Popconfirm>
+              <Popconfirm title="Từ chối yêu cầu này?" onConfirm={() => handleApproval(m.id, 'Rejected')}>
+                <Button size="small" danger icon={<CloseOutlined />}>Từ chối</Button>
+              </Popconfirm>
             </>
           )}
 
           <Popconfirm title="Xoá yêu cầu này?" onConfirm={() => handleDelete(m.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Button size="small" danger type="text" icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       ),
