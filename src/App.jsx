@@ -15,6 +15,8 @@ import PendingRequestsPage from './pages/PendingRequestsPage';
 import RegisterPage from './pages/RegisterPage';
 import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
+import AssetCreatePage from './pages/AssetCreatePage';
+import VehicleAssignmentPage from './pages/VehicleAssignmentPage';
 
 export default function App() {
   return (
@@ -25,9 +27,11 @@ export default function App() {
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="vehicles" element={<VehicleListPage />} />
-            <Route path="vehicles/new" element={<VehicleFormPage />} />
-            <Route path="vehicles/:id" element={<VehicleFormPage />} />
+          <Route path="vehicles" element={<VehicleListPage />} />
+          <Route path="vehicles/new" element={<VehicleFormPage />} />
+          <Route path="vehicles/:id" element={<VehicleFormPage />} />
+          <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
+          <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
             <Route path="maintenance" element={<MaintenanceListPage />} />
             <Route path="maintenance/new" element={<MaintenanceFormPage />} />
             <Route path="maintenance/:id" element={<MaintenanceFormPage />} />

@@ -13,13 +13,25 @@ import {
   UserAddOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
 
 const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan', roles: null },
-  { key: '/vehicles', icon: <CarOutlined />, label: 'Quản lý xe', roles: null },
+  { 
+    key: '/vehicles', 
+    icon: <CarOutlined />, 
+    label: 'Quản lý xe', 
+    roles: null,
+    children: [
+      { key: '/vehicles', label: 'Danh sách xe' },
+      { key: '/vehicles/new', label: 'Thêm xe mới', roles: ['Branch Asset Accountant'] },
+      { key: '/vehicles/asset-create', label: 'Đăng ký Tài sản', roles: ['Branch Asset Accountant'] },
+      { key: '/vehicles/assignment', label: 'Phân công xe' },
+    ]
+  },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
@@ -35,9 +47,30 @@ export default function MainLayout() {
   const { token: themeToken } = theme.useToken();
 
   const userRoles = user?.roles || [];
+  
+  // Helper function to filter children by role
+  const filterChildrenByRole = (children) => {
+    if (!children) return undefined;
+    return children.filter((child) => !child.roles || child.roles.some((r) => userRoles.includes(r)));
+  };
+
   const menuItems = NAV_ITEMS
     .filter((item) => !item.roles || item.roles.some((r) => userRoles.includes(r)))
-    .map(({ key, icon, label }) => ({ key, icon, label }));
+    .map(({ key, icon, label, children }) => {
+      const filteredChildren = filterChildrenByRole(children);
+      if (filteredChildren && filteredChildren.length > 0) {
+        return {
+          key,
+          icon,
+          label,
+          children: filteredChildren.map((child) => ({
+            key: child.key,
+            label: child.label,
+          })),
+        };
+      }
+      return { key, icon, label };
+    });
 
   const handleLogout = async () => {
     await logout();
