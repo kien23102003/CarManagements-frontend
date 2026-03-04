@@ -81,7 +81,7 @@ export default function DistributionPage() {
   const tabItems = [
     {
       key: 'stock',
-      label: 'Tồn kho theo chi nhánh',
+      label: 'Theo chi nhánh',
       children: loading ? <Card loading /> : stock.length === 0 ? (
         <Card><div style={{ textAlign: 'center', padding: 40, color: '#8c8c8c' }}>Chưa có dữ liệu tồn kho</div></Card>
       ) : (

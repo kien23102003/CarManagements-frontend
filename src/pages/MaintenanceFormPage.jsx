@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import maintenanceApi from '../api/maintenanceApi';
+import vehicleApi from '../api/vehicleApi';
 import { Card, Form, Input, InputNumber, Select, DatePicker, Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -11,9 +12,21 @@ export default function MaintenanceFormPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => { if (isEdit) loadItem(); }, [id]);
+  useEffect(() => {
+    loadVehicles();
+    if (isEdit) loadItem();
+  }, [id]);
+
+  const loadVehicles = async () => {
+    try {
+      const { data } = await vehicleApi.getList();
+      const list = (data.data || data || []).filter((v) => v.status !== 'Disposed');
+      setVehicles(list);
+    } catch { /* ignore */ }
+  };
 
   const loadItem = async () => {
     setLoading(true);
@@ -54,8 +67,16 @@ export default function MaintenanceFormPage() {
       <Card style={{ borderRadius: 12, marginTop: 16 }}>
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Periodic' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            <Form.Item name="vehicleId" label="Mã xe" rules={[{ required: true, message: 'Vui lòng nhập mã xe' }]}>
-              <InputNumber style={{ width: '100%' }} placeholder="Nhập mã xe" />
+            <Form.Item name="vehicleId" label="Xe" rules={[{ required: true, message: 'Vui lòng chọn xe' }]}>
+              <Select
+                showSearch
+                placeholder="Tìm và chọn xe..."
+                optionFilterProp="label"
+                options={vehicles.map((v) => ({
+                  value: v.id,
+                  label: `${v.licensePlate || '—'} — ${v.manufacturer || ''} ${v.modelName || ''}`.trim(),
+                }))}
+              />
             </Form.Item>
             <Form.Item name="maintenanceType" label="Loại bảo trì" rules={[{ required: true }]}>
               <Select options={[
