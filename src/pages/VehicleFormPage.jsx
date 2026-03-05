@@ -47,7 +47,7 @@ export default function VehicleFormPage() {
       const modelsMap = new Map();
       list.forEach((v) => {
         if (v.modelId && !modelsMap.has(v.modelId)) {
-          modelsMap.set(v.modelId, `${v.manufacturer || ''} ${v.modelName || ''}`.trim() || `Model #${v.modelId}`);
+          modelsMap.set(v.modelId, `${v.manufacturer || ''} ${v.modelName || ''}`.trim() || `Dòng xe #${v.modelId}`);
         }
       });
       setModelOptions([...modelsMap.entries()].map(([id, name]) => ({ value: id, label: name })));

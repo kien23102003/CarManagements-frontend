@@ -6,8 +6,11 @@ import { PlusOutlined, EditOutlined, CarOutlined, BankOutlined } from '@ant-desi
 
 const TRANG_THAI = {
   Active: { label: 'Hoạt động', color: 'green' },
+  Available: { label: 'Sẵn sàng', color: 'green' },
+  Assigned: { label: 'Đã phân công', color: 'blue' },
+  Maintenance: { label: 'Đang bảo trì', color: 'orange' },
   InMaintenance: { label: 'Đang bảo trì', color: 'orange' },
-  InTransfer: { label: 'Đang điều chuyển', color: 'blue' },
+  InTransfer: { label: 'Đang điều chuyển', color: 'cyan' },
   Disposed: { label: 'Đã thanh lý', color: 'red' },
 };
 
@@ -58,8 +61,8 @@ export default function VehicleListPage() {
   const stats = useMemo(() => {
     const s = { total: filtered.length, active: 0, maintenance: 0, branches: branches.length };
     filtered.forEach((v) => {
-      if (v.status === 'Active') s.active++;
-      if (v.status === 'InMaintenance') s.maintenance++;
+      if (v.status === 'Active' || v.status === 'Available') s.active++;
+      if (v.status === 'InMaintenance' || v.status === 'Maintenance') s.maintenance++;
     });
     return s;
   }, [filtered, branches]);

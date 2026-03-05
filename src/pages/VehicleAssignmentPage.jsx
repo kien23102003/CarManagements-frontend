@@ -20,6 +20,7 @@ const statusColors = {
   Available: 'green',
   Active: 'green',
   Assigned: 'blue',
+  Maintenance: 'orange',
   InMaintenance: 'orange',
   InTransfer: 'purple',
   Disposed: 'red',
@@ -29,6 +30,7 @@ const statusLabels = {
   Available: 'Sẵn sàng',
   Active: 'Sẵn sàng',
   Assigned: 'Đã phân công',
+  Maintenance: 'Đang bảo trì',
   InMaintenance: 'Đang bảo trì',
   InTransfer: 'Đang điều chuyển',
   Disposed: 'Đã thanh lý',
@@ -128,7 +130,7 @@ export default function VehicleAssignmentPage() {
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
-      title: 'Model',
+      title: 'Dòng xe',
       dataIndex: 'modelName',
       key: 'modelName',
       width: 100,
@@ -341,7 +343,7 @@ export default function VehicleAssignmentPage() {
         <Col xs={24} sm={12} md={6}>
           <Card size="small" style={{ textAlign: 'center', borderRadius: 12 }}>
             <div style={{ fontSize: 24, fontWeight: 'bold', color: '#faad14' }}>
-              {vehicles.filter(v => v.status === 'InMaintenance').length}
+              {vehicles.filter(v => v.status === 'InMaintenance' || v.status === 'Maintenance').length}
             </div>
             <div style={{ color: '#666' }}>Đang bảo trì</div>
           </Card>

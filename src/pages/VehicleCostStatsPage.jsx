@@ -100,7 +100,11 @@ export default function VehicleCostStatsPage() {
     { title: 'Dòng xe', key: 'model', width: 160, render: (_, r) => `${r.manufacturer || ''} ${r.modelName || ''}`.trim() || '—' },
     { title: 'Chi nhánh', dataIndex: 'currentBranchName', key: 'branch', width: 160 },
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110, align: 'center',
-      render: (s) => <Tag color={s === 'Active' ? 'green' : s === 'Maintenance' ? 'orange' : 'red'}>{s}</Tag> },
+      render: (s) => {
+        const STATUS_MAP = { Active: 'Hoạt động', Available: 'Sẵn sàng', Assigned: 'Đã phân công', Maintenance: 'Đang bảo trì', InMaintenance: 'Đang bảo trì', InTransfer: 'Đang điều chuyển', Disposed: 'Đã thanh lý' };
+        const COLOR_MAP = { Active: 'green', Available: 'green', Assigned: 'blue', Maintenance: 'orange', InMaintenance: 'orange', InTransfer: 'cyan', Disposed: 'red' };
+        return <Tag color={COLOR_MAP[s] || 'default'}>{STATUS_MAP[s] || s}</Tag>;
+      } },
     { title: 'Giá gốc', dataIndex: 'originalCost', key: 'orig', render: fmt, align: 'right', width: 170, sorter: (a, b) => (a.originalCost || 0) - (b.originalCost || 0) },
     { title: 'Giá hiện tại', dataIndex: 'currentValue', key: 'cur', render: fmt, align: 'right', width: 170, sorter: (a, b) => (a.currentValue || 0) - (b.currentValue || 0) },
     { title: 'Lỗ', dataIndex: 'loss', key: 'loss', align: 'right', width: 170,
