@@ -98,9 +98,9 @@ export default function CreateProposalPage() {
                         <Select
                           placeholder="Chọn chi nhánh"
                           options={[
-                            { value: 1, label: 'Branch 1' },
-                            { value: 2, label: 'Branch 2' },
-                            { value: 3, label: 'Branch 3' },
+                            { value: 1, label: 'Chi nhánh 1' },
+                            { value: 2, label: 'Chi nhánh 2' },
+                            { value: 3, label: 'Chi nhánh 3' },
                           ]}
                         />
                       </Form.Item>
