@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import maintenanceApi from '../api/maintenanceApi';
-import { Table, Tag, Button, Select, Space, Popconfirm, message } from 'antd';
+import { Table, Tag, Button, Select, Space, Popconfirm, Modal, Form, Input, message } from 'antd';
 import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
@@ -30,7 +30,6 @@ const LOAI_BT = {
 };
 
 export default function MaintenanceListPage() {
-  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +106,7 @@ export default function MaintenanceListPage() {
       closeApprovalModal();
       loadData();
     } catch (err) {
+      if (err?.errorFields) return; // form validation error
       message.error(err.response?.data?.message || 'Có lỗi');
     }
 
@@ -138,6 +138,10 @@ export default function MaintenanceListPage() {
     { title: 'Chi phí ước tính', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
     { title: 'Ngày yêu cầu', dataIndex: 'requestDate', key: 'date', render: (v) => v || '—' },
     {
+      title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120,
+      render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
+    },
+    {
       title: 'Hành động', key: 'action', width: 260,
       render: (_, m) => (
         <Space>
@@ -151,12 +155,8 @@ export default function MaintenanceListPage() {
           )}
           {isAccountant && m.status === 'Pending' && (
             <>
-              <Popconfirm title="Duyệt yêu cầu này?" onConfirm={() => handleApproval(m.id, 'Approved')}>
-                <Button size="small" type="primary" icon={<CheckOutlined />}>Duyệt</Button>
-              </Popconfirm>
-              <Popconfirm title="Từ chối yêu cầu này?" onConfirm={() => handleApproval(m.id, 'Rejected')}>
-                <Button size="small" danger icon={<CloseOutlined />}>Từ chối</Button>
-              </Popconfirm>
+              <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => openApprovalModal(m.id, 'Approved')}>Duyệt</Button>
+              <Button size="small" danger icon={<CloseOutlined />} onClick={() => openApprovalModal(m.id, 'Rejected')}>Từ chối</Button>
             </>
           )}
 
@@ -194,7 +194,10 @@ export default function MaintenanceListPage() {
           style={{ width: 180 }}
           value={typeFilter}
           onChange={setTypeFilter}
-          options={Object.entries(LOAI_BT).map(([k, v]) => ({ value: k, label: v }))}
+          options={[
+            { value: 'Periodic', label: 'Định kỳ' },
+            { value: 'Breakdown', label: 'Sửa chữa/hỏng hóc' },
+          ]}
         />
       </Space>
 
@@ -234,3 +237,4 @@ export default function MaintenanceListPage() {
     </div>
   );
 }
+

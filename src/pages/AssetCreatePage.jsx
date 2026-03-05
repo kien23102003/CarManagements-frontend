@@ -147,7 +147,7 @@ export default function AssetCreatePage() {
                   }
                   options={vehicleModels.map(m => ({
                     value: m.id || m.Id,
-                    label: `${m.manufacturer || m.Manufacturer || 'Unknown'} - ${m.modelName || m.ModelName || 'Unknown'}`
+                    label: `${m.manufacturer || m.Manufacturer || 'Không rõ'} - ${m.modelName || m.ModelName || 'Không rõ'}`
                   }))}
                 />
               </Form.Item>
@@ -435,7 +435,7 @@ export default function AssetCreatePage() {
                   }
                   options={branches.map(b => ({
                     value: b.id || b.Id,
-                    label: b.name || b.Name || 'Unknown'
+                    label: b.name || b.Name || 'Không rõ'
                   }))}
                 />
               </Form.Item>
@@ -456,7 +456,7 @@ export default function AssetCreatePage() {
                   }
                   options={drivers.map(d => ({
                     value: d.id || d.Id,
-                    label: d.name || d.Name || 'Unknown'
+                    label: d.name || d.Name || 'Không rõ'
                   }))}
                 />
               </Form.Item>

@@ -37,6 +37,7 @@ const NAV_ITEMS = [
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
   { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },
   { key: '/proposals', icon: <CarOutlined />, label: 'Đề Xuất Xe', roles: null },
+  { key: '/vehicle-stats', icon: <DashboardOutlined />, label: 'Thống kê chi phí xe', roles: null },
 ];
 
 export default function MainLayout() {
