@@ -24,6 +24,8 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import proposalApi from '../api/proposalApi';
+import { useAuth } from '../services/AuthContext';
+
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -47,6 +49,12 @@ export default function ProposalListPage() {
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
+
+    const { user } = useAuth();
+
+    // Kiểm tra quyền (Roles là mảng nên dùng .includes)
+    const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
+   // const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
         loadData();
@@ -211,29 +219,30 @@ export default function ProposalListPage() {
 
         return (
             <Space>
-                <Button
-                    size="small"
-                    type="primary"
-                    icon={<CheckOutlined />}
-                    disabled={disabled}
-                    onClick={() => handleApprove(record.id)}
-                >
-                    Duyệt
-                </Button>
-
-                <Button
-                    size="small"
-                    danger
-                    icon={<CloseOutlined />}
-                    disabled={disabled}
-                    onClick={() => {
-                        setSelectedId(record.id);
-                        setRejectModalOpen(true);
-                    }}
-                >
-                    Từ chối
-                </Button>
-
+                {/* CHỈ HIỂN THỊ NÚT DUYỆT/TỪ CHỐI NẾU LÀ MANAGER */}
+                {isExecutive && (
+                    <>
+                        <Button
+                            size="small"
+                            type="primary"
+                            disabled={disabled}
+                            onClick={() => handleApprove(record.id)}
+                        >
+                            Duyệt
+                        </Button>
+                        <Button
+                            size="small"
+                            danger
+                            disabled={disabled}
+                            onClick={() => {
+                                setSelectedId(record.id);
+                                setRejectModalOpen(true);
+                            }}
+                        >
+                            Từ chối
+                        </Button>
+                    </>
+                )}
                 <Popconfirm
                     title="Hủy đề xuất này?"
                     onConfirm={() => handleDelete(record.id)}
@@ -290,13 +299,15 @@ export default function ProposalListPage() {
                 </Col>
 
                 <Col span={6}>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => navigate('/proposals/create')}
-                    >
-                        Tạo đề xuất
-                    </Button>
+                    {!isExecutive && (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => navigate('/proposals/create')}
+                        >
+                            Tạo đề xuất
+                        </Button>
+                    )}
                 </Col>
             </Row>
 
