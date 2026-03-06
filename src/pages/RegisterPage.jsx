@@ -69,7 +69,7 @@ export default function RegisterPage() {
     try {
       const values = await form.validateFields();
       setSaving(true);
-      await userApi.createAdminAccount({
+      const { data } = await userApi.createAdminAccount({
         name: values.name?.trim(),
         email: values.email?.trim(),
         password: values.password,
@@ -77,7 +77,12 @@ export default function RegisterPage() {
         branchId: values.branchId || null,
         role: values.role,
       });
-      message.success('Tạo tài khoản thành công');
+      const payload = data?.data || data;
+      if (payload?.warning) {
+        message.warning(payload.warning);
+      } else {
+        message.success('Tạo tài khoản thành công');
+      }
       form.resetFields();
       setCreateOpen(false);
       loadAccounts(includeDeactivated);
