@@ -18,6 +18,8 @@ import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
 import AssetCreatePage from './pages/AssetCreatePage';
 import VehicleAssignmentPage from './pages/VehicleAssignmentPage';
+import VerifySuccessPage from './pages/VerifySuccessPage';
+import VerifyFailedPage from './pages/VerifyFailedPage';
 
 export default function App() {
   return (
@@ -25,6 +27,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/verify-success" element={<VerifySuccessPage />} />
+          <Route path="/verify-failed" element={<VerifyFailedPage />} />
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
