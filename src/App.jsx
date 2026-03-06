@@ -18,6 +18,7 @@ import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
 import AssetCreatePage from './pages/AssetCreatePage';
 import VehicleAssignmentPage from './pages/VehicleAssignmentPage';
+import TripLogsPage from "./pages/TripLogsPage";
 import VerifySuccessPage from './pages/VerifySuccessPage';
 import VerifyFailedPage from './pages/VerifyFailedPage';
 
@@ -31,22 +32,33 @@ export default function App() {
           <Route path="/verify-failed" element={<VerifyFailedPage />} />
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
+
             <Route path="profile" element={<ProfilePage />} />
-          <Route path="vehicles" element={<VehicleListPage />} />
-          <Route path="vehicles/new" element={<VehicleFormPage />} />
-          <Route path="vehicles/:id" element={<VehicleFormPage />} />
-          <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
-          <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
+
+            <Route path="vehicles" element={<VehicleListPage />} />
+            <Route path="vehicles/new" element={<VehicleFormPage />} />
+            <Route path="vehicles/:id" element={<VehicleFormPage />} />
+            <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
+            <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
+
             <Route path="maintenance" element={<MaintenanceListPage />} />
             <Route path="maintenance/new" element={<MaintenanceFormPage />} />
             <Route path="maintenance/:id" element={<MaintenanceFormPage />} />
+
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="distribution/new" element={<TransferFormPage />} />
+
             <Route path="pending" element={<PendingRequestsPage />} />
             <Route path="register" element={<RegisterPage />} />
+
             <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
+
             <Route path="proposals" element={<ProposalListPage />} />
             <Route path="proposals/create" element={<CreateProposalPage />} />
+
+            {/* NEW */}
+            <Route path="trip-logs" element={<TripLogsPage />} />
+
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
