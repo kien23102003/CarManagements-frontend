@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -11,6 +11,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   UserAddOutlined,
+  LockOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SafetyCertificateOutlined,
@@ -89,12 +90,14 @@ export default function MainLayout() {
 
   const userMenuItems = [
     { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ' },
+    { key: 'change-password', icon: <LockOutlined />, label: 'Đổi mật khẩu' },
     { type: 'divider' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
 
   const handleUserMenu = ({ key }) => {
     if (key === 'profile') navigate('/profile');
+    if (key === 'change-password') navigate('/change-password');
     if (key === 'logout') handleLogout();
   };
 

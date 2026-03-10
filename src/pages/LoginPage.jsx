@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Form, Input, Button, Typography, Card, message } from 'antd';
 import { LockOutlined, MailOutlined, CarOutlined } from '@ant-design/icons';
@@ -78,6 +78,10 @@ export default function LoginPage() {
           >
             <Input.Password prefix={<LockOutlined />} placeholder="Mật khẩu" />
           </Form.Item>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <Link to="/forgot-password">Quên mật khẩu?</Link>
+          </div>
 
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block style={{ height: 44 }}>

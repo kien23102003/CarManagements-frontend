@@ -21,6 +21,10 @@ import VehicleAssignmentPage from './pages/VehicleAssignmentPage';
 import TripLogsPage from "./pages/TripLogsPage";
 import VerifySuccessPage from './pages/VerifySuccessPage';
 import VerifyFailedPage from './pages/VerifyFailedPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import SetNewPasswordPage from './pages/SetNewPasswordPage';
 
 export default function App() {
   return (
@@ -28,12 +32,16 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/set-new-password" element={<SetNewPasswordPage />} />
           <Route path="/verify-success" element={<VerifySuccessPage />} />
           <Route path="/verify-failed" element={<VerifyFailedPage />} />
           <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
             <Route index element={<DashboardPage />} />
 
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="change-password" element={<ChangePasswordPage />} />
 
             <Route path="vehicles" element={<VehicleListPage />} />
             <Route path="vehicles/new" element={<VehicleFormPage />} />
