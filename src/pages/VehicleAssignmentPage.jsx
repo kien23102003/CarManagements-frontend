@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../services/AuthContext';
 import assetApi from '../api/assetApi';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tag, Space, Popconfirm, Row, Col } from 'antd';
 import { 
@@ -45,11 +46,18 @@ export default function VehicleAssignmentPage() {
   const [assigning, setAssigning] = useState(false);
   const [drivers, setDrivers] = useState([]);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const roles = user?.roles || [];
+  const hasPermission =
+    roles.includes('Operator') ||
+    roles.includes('Branch Asset Accountant') ||
+    roles.includes('Executive Management');
 
   useEffect(() => {
+    if (!hasPermission) return;
     loadVehicles();
     loadDrivers();
-  }, []);
+  }, [hasPermission]);
 
   const loadDrivers = async () => {
     try {
@@ -70,6 +78,14 @@ export default function VehicleAssignmentPage() {
     }
     setLoading(false);
   };
+
+  if (!hasPermission) {
+    return (
+      <Card>
+        Bạn không có quyền truy cập màn hình phân công xe.
+      </Card>
+    );
+  }
 
   const handleAssignClick = (vehicle) => {
     setSelectedVehicle(vehicle);

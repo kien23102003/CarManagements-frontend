@@ -25,6 +25,11 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import SetNewPasswordPage from './pages/SetNewPasswordPage';
+import AccessoryListPage from './pages/AccessoryListPage';
+import AccessoryFormPage from './pages/AccessoryFormPage';
+import AccessoryIssuePage from './pages/AccessoryIssuePage';
+import VehicleAccessoriesPage from './pages/VehicleAccessoriesPage';
+import AccessoryTransactionsPage from './pages/AccessoryTransactionsPage';
 
 export default function App() {
   return (
@@ -48,6 +53,13 @@ export default function App() {
             <Route path="vehicles/:id" element={<VehicleFormPage />} />
             <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
             <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
+            <Route path="vehicles/:vehicleId/accessories" element={<VehicleAccessoriesPage />} />
+
+            <Route path="accessories" element={<AccessoryListPage />} />
+            <Route path="accessories/new" element={<AccessoryFormPage />} />
+            <Route path="accessories/:id" element={<AccessoryFormPage />} />
+            <Route path="accessories/issue" element={<AccessoryIssuePage />} />
+            <Route path="accessory-transactions" element={<AccessoryTransactionsPage />} />
 
             <Route path="maintenance" element={<MaintenanceListPage />} />
             <Route path="maintenance/new" element={<MaintenanceFormPage />} />

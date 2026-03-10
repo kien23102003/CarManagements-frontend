@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import vehicleApi from '../api/vehicleApi';
 import { Row, Col, Card, Statistic, Input, Select, Collapse, Table, Tag, Space, Button, message } from 'antd';
@@ -74,20 +74,25 @@ export default function VehicleListPage() {
   };
 
   const columns = [
-    { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '—'}</strong> },
-    { title: 'Hãng xe', dataIndex: 'manufacturer', key: 'mfr', render: (v) => v || '—' },
-    { title: 'Dòng xe', dataIndex: 'modelName', key: 'model', render: (v) => v || '—' },
-    { title: 'Năm SX', dataIndex: 'yearManufacture', key: 'year', render: (v) => v || '—' },
-    { title: 'Số km', dataIndex: 'mileage', key: 'km', render: (v) => v ? v.toLocaleString('vi-VN') : '—' },
-    { title: 'Tài xế', dataIndex: 'currentDriverName', key: 'driver', render: (v) => v || '—' },
+    { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '-'}</strong> },
+    { title: 'Hãng xe', dataIndex: 'manufacturer', key: 'mfr', render: (v) => v || '-' },
+    { title: 'Dòng xe', dataIndex: 'modelName', key: 'model', render: (v) => v || '-' },
+    { title: 'Năm SX', dataIndex: 'yearManufacture', key: 'year', render: (v) => v || '-' },
+    { title: 'Số km', dataIndex: 'mileage', key: 'km', render: (v) => v ? v.toLocaleString('vi-VN') : '-' },
+    { title: 'Tài xế', dataIndex: 'currentDriverName', key: 'driver', render: (v) => v || '-' },
     {
       title: 'Trạng thái', dataIndex: 'status', key: 'status',
       render: (s) => { const info = TRANG_THAI[s] || { label: s, color: 'default' }; return <Tag color={info.color}>{info.label}</Tag>; },
     },
     {
-      title: '', key: 'action', width: 80,
+      title: '',
+      key: 'action',
+      width: 170,
       render: (_, record) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/vehicles/${record.id}`)}>Sửa</Button>
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/vehicles/${record.id}`)}>Sửa</Button>
+          <Button size="small" onClick={() => navigate(`/vehicles/${record.id}/accessories`)}>Phụ kiện</Button>
+        </Space>
       ),
     },
   ];
@@ -115,7 +120,7 @@ export default function VehicleListPage() {
           <Space wrap style={{ marginBottom: 12 }}>
             <CarOutlined style={{ color: '#8c8c8c' }} />
             {models.map(([name, count]) => (
-              <Tag key={name}>{name} <strong>×{count}</strong></Tag>
+              <Tag key={name}>{name} <strong>x{count}</strong></Tag>
             ))}
           </Space>
           <Table dataSource={branch.vehicles} columns={columns} rowKey="id" size="small" pagination={false} />
@@ -156,3 +161,4 @@ export default function VehicleListPage() {
     </div>
   );
 }
+
