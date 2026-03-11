@@ -14,6 +14,7 @@ import {
     Select,
     Row,
     Col,
+    Tabs,
 } from 'antd';
 import {
     CheckOutlined,
@@ -25,6 +26,7 @@ import {
 import dayjs from 'dayjs';
 import proposalApi from '../api/proposalApi';
 import { useAuth } from '../services/AuthContext';
+import PurchasePlanPage from './PurchasePlanPage';
 
 
 const { TextArea } = Input;
@@ -264,75 +266,93 @@ export default function ProposalListPage() {
 ];
 
     return (
-        <Card
-            style={{
-                borderRadius: 12,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            }}
-        >
-            <Title level={4}>Danh sách đề xuất mua xe</Title>
+        <div>
+            <Tabs
+                defaultActiveKey="plans"
+                items={[
+                    {
+                        key: 'plans',
+                        label: '📋 Kế hoạch mua (Ưu tiên)',
+                        children: <PurchasePlanPage />,
+                    },
+                    {
+                        key: 'proposals',
+                        label: '📝 Danh sách đề xuất',
+                        children: (
+                            <Card
+                                style={{
+                                    borderRadius: 12,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                }}
+                            >
+                                <Title level={4}>Danh sách đề xuất mua xe</Title>
 
-            {/* SEARCH + FILTER BAR */}
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={8}>
-                    <Input
-                        placeholder="Tìm theo mã hoặc mô tả..."
-                        prefix={<SearchOutlined />}
-                        allowClear
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
-                </Col>
+                                {/* SEARCH + FILTER BAR */}
+                                <Row gutter={16} style={{ marginBottom: 16 }}>
+                                    <Col span={8}>
+                                        <Input
+                                            placeholder="Tìm theo mã hoặc mô tả..."
+                                            prefix={<SearchOutlined />}
+                                            allowClear
+                                            onChange={(e) => setSearchText(e.target.value)}
+                                        />
+                                    </Col>
 
-                <Col span={6}>
-                    <Select
-                        placeholder="Lọc theo trạng thái"
-                        allowClear
-                        style={{ width: '100%' }}
-                        onChange={(value) => setStatusFilter(value)}
-                    >
-                        {Object.keys(STATUS_CONFIG).map((key) => (
-                            <Option key={key} value={key}>
-                                {STATUS_CONFIG[key].label}
-                            </Option>
-                        ))}
-                    </Select>
-                </Col>
+                                    <Col span={6}>
+                                        <Select
+                                            placeholder="Lọc theo trạng thái"
+                                            allowClear
+                                            style={{ width: '100%' }}
+                                            onChange={(value) => setStatusFilter(value)}
+                                        >
+                                            {Object.keys(STATUS_CONFIG).map((key) => (
+                                                <Option key={key} value={key}>
+                                                    {STATUS_CONFIG[key].label}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Col>
 
-                <Col span={6}>
-                    {!isExecutive && (
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => navigate('/proposals/create')}
-                        >
-                            Tạo đề xuất
-                        </Button>
-                    )}
-                </Col>
-            </Row>
+                                    <Col span={6}>
+                                        {!isExecutive && (
+                                            <Button
+                                                type="primary"
+                                                icon={<PlusOutlined />}
+                                                onClick={() => navigate('/proposals/create')}
+                                            >
+                                                Tạo đề xuất
+                                            </Button>
+                                        )}
+                                    </Col>
+                                </Row>
 
-            <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={filteredData}
-                loading={loading}
-                pagination={{ pageSize: 10 }}
-                bordered
+                                <Table
+                                    rowKey="id"
+                                    columns={columns}
+                                    dataSource={filteredData}
+                                    loading={loading}
+                                    pagination={{ pageSize: 10 }}
+                                    bordered
+                                />
+
+                                <Modal
+                                    title="Lý do từ chối"
+                                    open={rejectModalOpen}
+                                    onOk={handleReject}
+                                    onCancel={() => setRejectModalOpen(false)}
+                                >
+                                    <TextArea
+                                        rows={4}
+                                        placeholder="Nhập lý do từ chối..."
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                    />
+                                </Modal>
+                            </Card>
+                        ),
+                    },
+                ]}
             />
-
-            <Modal
-                title="Lý do từ chối"
-                open={rejectModalOpen}
-                onOk={handleReject}
-                onCancel={() => setRejectModalOpen(false)}
-            >
-                <TextArea
-                    rows={4}
-                    placeholder="Nhập lý do từ chối..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                />
-            </Modal>
-        </Card>
+        </div>
     );
 }

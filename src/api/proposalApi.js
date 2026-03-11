@@ -15,6 +15,18 @@ const proposalApi = {
 
   delete: (id) =>
     axiosClient.delete(`/purchase-proposals/${id}`),
+
+  // ===== ĐOI CHIẾU / KẾ HOẠCH MUA =====
+  
+  /** Lấy danh sách kế hoạch mua (approved proposals) */
+  getPurchasePlans: (branchId) => {
+    const params = branchId ? { branchId } : {};
+    return axiosClient.get('/purchase-proposals/purchase-plans', { params });
+  },
+
+  /** Lấy kế hoạch mua theo chi nhánh (Manager xem tất cả) */
+  getPurchasePlansByBranch: (branchId) =>
+    axiosClient.get(`/purchase-proposals/purchase-plans?branchId=${branchId}`),
 };
 
 export default proposalApi;
