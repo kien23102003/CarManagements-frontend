@@ -54,7 +54,7 @@ export default function ProposalListPage() {
 
     // Kiểm tra quyền (Roles là mảng nên dùng .includes)
     const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
-   // const isOperator = user?.roles?.includes('Operator');
+    const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
         loadData();
@@ -243,20 +243,22 @@ export default function ProposalListPage() {
                         </Button>
                     </>
                 )}
-                <Popconfirm
-                    title="Hủy đề xuất này?"
-                    onConfirm={() => handleDelete(record.id)}
-                    disabled={disabled}
-                >
-                    <Button
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
+                {isOperator && (
+                    <Popconfirm
+                        title="Hủy đề xuất này?"
+                        onConfirm={() => handleDelete(record.id)}
                         disabled={disabled}
                     >
-                        Hủy
-                    </Button>
-                </Popconfirm>
+                        <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={disabled}
+                        >
+                            Hủy
+                        </Button>
+                    </Popconfirm>
+                )}
             </Space>
         );
     },

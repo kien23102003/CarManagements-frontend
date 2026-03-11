@@ -15,6 +15,9 @@ const proposalApi = {
 
   delete: (id) =>
     axiosClient.delete(`/purchase-proposals/${id}`),
+
+  getBranches: () =>
+    axiosClient.get('/Branch/dropdown'),
 };
 
 export default proposalApi;

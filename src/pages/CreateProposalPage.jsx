@@ -13,6 +13,7 @@ import {
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import proposalApi from '../api/proposalApi';
 
 const { TextArea } = Input;
@@ -21,6 +22,19 @@ const { Title } = Typography;
 export default function CreateProposalPage() {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await proposalApi.getBranches();
+        setBranches(res.data.data || []);
+      } catch (error) {
+        message.error('Không tải được danh sách chi nhánh');
+      }
+    };
+    fetchBranches();
+  }, []);
 
   const handleSubmit = async (values) => {
     try {
@@ -97,11 +111,7 @@ export default function CreateProposalPage() {
                       >
                         <Select
                           placeholder="Chọn chi nhánh"
-                          options={[
-                            { value: 1, label: 'Chi nhánh 1' },
-                            { value: 2, label: 'Chi nhánh 2' },
-                            { value: 3, label: 'Chi nhánh 3' },
-                          ]}
+                          options={branches}
                         />
                       </Form.Item>
                     </Col>
