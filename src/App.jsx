@@ -30,6 +30,10 @@ import AccessoryFormPage from './pages/AccessoryFormPage';
 import AccessoryIssuePage from './pages/AccessoryIssuePage';
 import VehicleAccessoriesPage from './pages/VehicleAccessoriesPage';
 import AccessoryTransactionsPage from './pages/AccessoryTransactionsPage';
+import DisposalProposalListPage from './pages/DisposalProposalListPage';
+import DisposalProposalDetailPage from './pages/DisposalProposalDetailPage';
+import DisposalProposalCreatePage from './pages/DisposalProposalCreatePage';
+import VehicleDisposalHistoryPage from './pages/VehicleDisposalHistoryPage';
 
 export default function App() {
   return (
@@ -54,6 +58,7 @@ export default function App() {
             <Route path="vehicles/asset-create" element={<AssetCreatePage />} />
             <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
             <Route path="vehicles/:vehicleId/accessories" element={<VehicleAccessoriesPage />} />
+            <Route path="vehicles/:vehicleId/disposal-proposals" element={<VehicleDisposalHistoryPage />} />
 
             <Route path="accessories" element={<AccessoryListPage />} />
             <Route path="accessories/new" element={<AccessoryFormPage />} />
@@ -75,6 +80,9 @@ export default function App() {
 
             <Route path="proposals" element={<ProposalListPage />} />
             <Route path="proposals/create" element={<CreateProposalPage />} />
+            <Route path="disposal-proposals" element={<DisposalProposalListPage />} />
+            <Route path="disposal-proposals/new" element={<DisposalProposalCreatePage />} />
+            <Route path="disposal-proposals/:id" element={<DisposalProposalDetailPage />} />
 
             {/* NEW */}
             <Route path="trip-logs" element={<TripLogsPage />} />
