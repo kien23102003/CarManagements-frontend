@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -11,32 +11,51 @@ import {
   UserOutlined,
   LogoutOutlined,
   UserAddOutlined,
+  LockOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SafetyCertificateOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
 
 const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan', roles: null },
-  { 
-    key: '/vehicles', 
-    icon: <CarOutlined />, 
-    label: 'Quản lý xe', 
+  {
+    key: 'vehicles-menu',
+    icon: <CarOutlined />,
+    label: 'Quản lý xe',
     roles: null,
     children: [
       { key: '/vehicles', label: 'Danh sách xe' },
       { key: '/vehicles/new', label: 'Thêm xe mới', roles: ['Branch Asset Accountant'] },
-      { key: '/vehicles/asset-create', label: 'Đăng ký Tài sản', roles: ['Branch Asset Accountant'] },
-      { key: '/vehicles/assignment', label: 'Phân công xe' },
-    ]
+      { key: '/vehicles/asset-create', label: 'Đăng ký tài sản', roles: ['Branch Asset Accountant'] },
+      { key: '/vehicles/assignment', label: 'Phân công xe', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'] },
+    ],
+  },
+  {
+    key: 'accessories-menu',
+    icon: <AppstoreOutlined />,
+    label: 'Phụ kiện',
+    roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'],
+    children: [
+      { key: '/accessories', label: 'Danh sách phụ kiện' },
+      { key: '/accessories/issue', label: 'Cấp phát phụ kiện', roles: ['Operator', 'Executive Management'] },
+      { key: '/accessory-transactions', label: 'Lịch sử giao dịch' },
+    ],
+  },
+  {
+    key: '/trip-logs',
+    icon: <SafetyCertificateOutlined />,
+    label: 'Nhật ký chuyến đi',
+    roles: ['Operator', 'Branch Asset Accountant'],
   },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
   { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },
-  { key: '/proposals', icon: <CarOutlined />, label: 'Đề Xuất Xe', roles: null },
+  { key: '/proposals', icon: <CarOutlined />, label: 'Đề xuất xe', roles: null },
   { key: '/vehicle-stats', icon: <DashboardOutlined />, label: 'Thống kê chi phí xe', roles: null },
 ];
 
@@ -48,8 +67,7 @@ export default function MainLayout() {
   const { token: themeToken } = theme.useToken();
 
   const userRoles = user?.roles || [];
-  
-  // Helper function to filter children by role
+
   const filterChildrenByRole = (children) => {
     if (!children) return undefined;
     return children.filter((child) => !child.roles || child.roles.some((r) => userRoles.includes(r)));
@@ -64,10 +82,7 @@ export default function MainLayout() {
           key,
           icon,
           label,
-          children: filteredChildren.map((child) => ({
-            key: child.key,
-            label: child.label,
-          })),
+          children: filteredChildren.map((child) => ({ key: child.key, label: child.label })),
         };
       }
       return { key, icon, label };
@@ -80,17 +95,35 @@ export default function MainLayout() {
 
   const userMenuItems = [
     { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ' },
+    { key: 'change-password', icon: <LockOutlined />, label: 'Đổi mật khẩu' },
     { type: 'divider' },
     { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', danger: true },
   ];
 
   const handleUserMenu = ({ key }) => {
     if (key === 'profile') navigate('/profile');
+    if (key === 'change-password') navigate('/change-password');
     if (key === 'logout') handleLogout();
   };
 
-  const selectedKey = menuItems.find((m) => m.key !== '/' && location.pathname.startsWith(m.key))?.key
-    || (location.pathname === '/' ? '/' : '');
+  const findSelectedKey = () => {
+    if (location.pathname === '/') return '/';
+
+    for (const item of menuItems) {
+      if (item.children?.length) {
+        const child = item.children.find((c) => location.pathname.startsWith(c.key));
+        if (child) return child.key;
+      }
+
+      if (item.key !== '/' && location.pathname.startsWith(item.key)) {
+        return item.key;
+      }
+    }
+
+    return '';
+  };
+
+  const selectedKey = findSelectedKey();
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -113,7 +146,7 @@ export default function MainLayout() {
         <div style={{ padding: '20px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <CarOutlined style={{ fontSize: 24, color: '#3b82f6' }} />
           {!collapsed && (
-            <Typography.Text strong style={{ color: '#fff', fontSize: 18 }}>Quản lý xe</Typography.Text>
+            <Typography.Text strong style={{ color: '#fff', fontSize: 18 }}>Car Management</Typography.Text>
           )}
         </div>
         <Menu
@@ -148,7 +181,7 @@ export default function MainLayout() {
               <Avatar style={{ background: themeToken.colorPrimary }}>
                 {(user?.fullName || user?.email || 'U').charAt(0).toUpperCase()}
               </Avatar>
-              <span style={{ fontWeight: 500 }}>{user?.fullName || user?.email || 'Người dùng'}</span>
+              <span style={{ fontWeight: 500 }}>{user?.fullName || user?.email || 'User'}</span>
             </div>
           </Dropdown>
         </Header>

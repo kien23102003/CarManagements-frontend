@@ -19,6 +19,18 @@ const authApi = {
   resendVerification: (email) =>
     axiosClient.post('/auth/resend-verification', { email }),
 
+  forgotPassword: (email) =>
+    axiosClient.post('/auth/forgot-password', { email }),
+
+  resetPassword: (token, newPassword) =>
+    axiosClient.post('/auth/reset-password', { token, newPassword }),
+
+  requestChangePassword: (currentPassword) =>
+    axiosClient.post('/change-password/request', { currentPassword }),
+
+  confirmChangePassword: (token, newPassword, confirmNewPassword) =>
+    axiosClient.post('/change-password/confirm', { token, newPassword, confirmNewPassword }),
+
   getMe: () =>
     axiosClient.get('/auth/me'),
 };
