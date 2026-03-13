@@ -32,6 +32,7 @@ const NAV_ITEMS = [
       { key: '/vehicles/new', label: 'Thêm xe mới', roles: ['Branch Asset Accountant'] },
       { key: '/vehicles/asset-create', label: 'Đăng ký tài sản', roles: ['Branch Asset Accountant'] },
       { key: '/vehicles/assignment', label: 'Phân công xe', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'] },
+      { key: '/disposal-proposals', label: 'Đề xuất thanh lý', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'] },
     ],
   },
   {
