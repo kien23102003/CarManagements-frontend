@@ -29,7 +29,7 @@ export default function CreateProposalPage() {
       try {
         const res = await proposalApi.getBranches();
         setBranches(res.data.data || []);
-      } catch (error) {
+      } catch {
         message.error('Không tải được danh sách chi nhánh');
       }
     };
@@ -47,7 +47,7 @@ export default function CreateProposalPage() {
       await proposalApi.create(payload);
       message.success('Tạo đề xuất thành công');
       navigate('/proposals');
-    } catch (err) {
+    } catch {
       message.error('Tạo đề xuất thất bại');
     }
   };
@@ -91,7 +91,7 @@ export default function CreateProposalPage() {
         <Form.List name="details">
           {(fields, { add, remove }) => (
             <>
-              {fields.map(({ key, name, ...restField }, index) => (
+              {fields.map(({ key, name, ...restField }) => (
                 <Card
                   key={key}
                   size="small"

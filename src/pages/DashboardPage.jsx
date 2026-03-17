@@ -30,8 +30,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { loadData(); }, []);
-
   const loadData = async () => {
     try {
       const [vRes, mRes, tRes, pRes, proposalRes] = await Promise.allSettled([
@@ -60,6 +58,8 @@ export default function DashboardPage() {
     } catch { /* ignore */ }
     setLoading(false);
   };
+
+  useEffect(() => { loadData(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
 
   const STAT_CARDS = [
     { icon: <CarOutlined />, title: 'Tổng số xe', value: stats.vehicles, color: '#3b82f6', path: '/vehicles' },

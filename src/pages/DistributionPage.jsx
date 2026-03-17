@@ -21,8 +21,6 @@ export default function DistributionPage() {
   const isExec = roles.includes('Executive Management');
   const isOperator = roles.includes('Operator');
 
-  useEffect(() => { loadData(); }, [tab, statusFilter]);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -38,6 +36,9 @@ export default function DistributionPage() {
     } catch { message.error('Không thể tải dữ liệu'); }
     setLoading(false);
   };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadData(); }, [tab, statusFilter]);
 
   const handleStatus = async (id, status) => {
     try {

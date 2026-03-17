@@ -49,7 +49,7 @@ const NAV_ITEMS = [
   {
     key: '/trip-logs',
     icon: <SafetyCertificateOutlined />,
-    label: 'Nhật ký chuyến đi',
+    label: 'Quản lý vận hành chuyến đi',
     roles: ['Operator', 'Branch Asset Accountant'],
   },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
