@@ -68,7 +68,7 @@ export default function CreateProposalPage() {
         onFinish={handleSubmit}
         initialValues={{
           details: [
-            { quantity: 1, unitPrice: 0, seats: null, manufacturer: '', notes: '' },
+            { branchId: null, quantity: 1, unitPrice: 0, notes: '' },
           ],
         }}
       >
@@ -86,7 +86,7 @@ export default function CreateProposalPage() {
 
         <Divider />
 
-        <Title level={5}>Chi tiết cấu hình xe đề xuất (Dành cho Chi nhánh của bạn)</Title>
+        <Title level={5}>Danh sách chi nhánh đề xuất</Title>
 
         <Form.List name="details">
           {(fields, { add, remove }) => (
@@ -102,46 +102,32 @@ export default function CreateProposalPage() {
                   }}
                 >
                   <Row gutter={16}>
-                    <Col span={5}>
+                    <Col span={6}>
                       <Form.Item
                         {...restField}
-                        label="Nhãn hiệu xe"
-                        name={[name, 'manufacturer']}
-                        rules={[{ required: true, message: 'Nhập nhãn hiệu' }]}
+                        label="Chi nhánh"
+                        name={[name, 'branchId']}
+                        rules={[{ required: true, message: 'Chọn chi nhánh' }]}
                       >
-                        <Input placeholder="VD: Toyota, Ford..." />
+                        <Select
+                          placeholder="Chọn chi nhánh"
+                          options={branches}
+                        />
                       </Form.Item>
                     </Col>
 
                     <Col span={4}>
                       <Form.Item
                         {...restField}
-                        label="Số chỗ ngồi"
-                        name={[name, 'seats']}
-                      >
-                        <Select
-                          placeholder="Chọn chi nhánh"
-                          options={[
-                            { value: 1, label: 'Chi nhánh 1' },
-                            { value: 2, label: 'Chi nhánh 2' },
-                            { value: 3, label: 'Chi nhánh 3' },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-
-                    <Col span={3}>
-                      <Form.Item
-                        {...restField}
                         label="Số lượng"
                         name={[name, 'quantity']}
                         rules={[{ required: true, message: 'Nhập số lượng' }]}
                       >
-                        <InputNumber min={1} max={10000} style={{ width: '100%' }} />
+                        <InputNumber min={1} style={{ width: '100%' }} />
                       </Form.Item>
                     </Col>
 
-                    <Col span={5}>
+                    <Col span={6}>
                       <Form.Item
                         {...restField}
                         label="Đơn giá (VNĐ)"
@@ -160,7 +146,6 @@ export default function CreateProposalPage() {
                       >
                         <InputNumber
                           min={0}
-                          max={9999999999999}
                           style={{ width: '100%' }}
                           formatter={(value) =>
                             `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
@@ -172,7 +157,7 @@ export default function CreateProposalPage() {
                       </Form.Item>
                     </Col>
 
-                    <Col span={5}>
+                    <Col span={6}>
                       <Form.Item
                         {...restField}
                         label="Ghi chú"
@@ -204,10 +189,9 @@ export default function CreateProposalPage() {
                   type="dashed"
                   onClick={() =>
                     add({
+                      branchId: null,
                       quantity: 1,
                       unitPrice: 0,
-                      seats: null,
-                      manufacturer: '',
                       notes: '',
                     })
                   }
@@ -215,7 +199,7 @@ export default function CreateProposalPage() {
                   icon={<PlusOutlined />}
                   style={{ borderRadius: 8 }}
                 >
-                  Thêm xe
+                  Thêm chi nhánh
                 </Button>
               </Form.Item>
             </>
