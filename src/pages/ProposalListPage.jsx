@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
     Table,
     Tag,
-    message,
+    App,
     Space,
     Button,
     Modal,
@@ -51,9 +51,16 @@ export default function ProposalListPage() {
     const [rejectReason, setRejectReason] = useState('');
 
     const { user } = useAuth();
+    const { message } = App.useApp();
 
     // Kiểm tra quyền (Roles là mảng nên dùng .includes)
-    const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
+    const isExecutive = user?.roles?.some(
+        (r) => r === 'Executive Management' || r === 'Manager'
+    );
+    const isAccountant = user?.roles?.some(
+        (r) => r === 'Branch Asset Accountant' || r === 'Chief Accountant'
+    );
+    // const isOperator = user?.roles?.includes('Operator');
     const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
@@ -76,8 +83,8 @@ export default function ProposalListPage() {
     const filteredData = useMemo(() => {
         return data.filter((item) => {
             const matchSearch =
-                item.id.toString().includes(searchText) ||
-                item.description
+                String(item?.proposalId ?? '').includes(searchText) ||
+                item?.description
                     ?.toLowerCase()
                     .includes(searchText.toLowerCase());
 
