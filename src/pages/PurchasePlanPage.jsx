@@ -13,6 +13,8 @@ import {
   Select,
   Badge,
   Divider,
+  Popconfirm,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -31,6 +33,8 @@ const STATUS_CONFIG = {
   Pending: { label: 'Chờ duyệt', color: 'orange' },
   Approved: { label: 'Đã duyệt', color: 'green' },
   Rejected: { label: 'Từ chối', color: 'red' },
+  Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'blue' },
+  Completed: { label: 'Hoàn thành', color: 'cyan' },
 };
 
 const PRIORITY_CONFIG = {
@@ -46,10 +50,16 @@ export default function PurchasePlanPage() {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [paymentErrorMsg, setPaymentErrorMsg] = useState('');
+  const [errorProposalId, setErrorProposalId] = useState(null);
 
   const { user } = useAuth();
   const isManager = user?.roles?.some(
     (r) => r === 'Executive Management' || r === 'Manager'
+  );
+  const isAccountant = user?.roles?.some(
+    (r) => r === 'Branch Asset Accountant' || r === 'Chief Accountant'
   );
 
   // Load data khi user thay đổi (đã đăng nhập hoặc đã tải user info)
@@ -109,6 +119,37 @@ export default function PurchasePlanPage() {
     loadData(); // Refresh list
   };
 
+  // ===== HANDLE CONFIRM PAYMENT =====
+  const handleConfirmPayment = async (proposalId) => {
+    try {
+      if (proposalApi.confirmPayment) {
+        await proposalApi.confirmPayment(proposalId);
+      } else {
+        message.warning('Vui lòng định nghĩa hàm confirmPayment trong proposalApi.js');
+        return;
+      }
+      message.success('Đã xác nhận thanh toán. Xe mới đã được tạo trong hệ thống!');
+      loadData();
+    } catch (error) {
+      // Bắt lỗi và hiển thị Modal
+      const errMsg = error?.response?.data?.message || error?.message || 'Lỗi khi xác nhận thanh toán';
+      setPaymentErrorMsg(errMsg);
+      setErrorProposalId(proposalId);
+      setErrorModalOpen(true);
+    }
+  };
+
+  const handleRollback = async () => {
+    try {
+      await proposalApi.rollbackReception(errorProposalId, { reason: paymentErrorMsg });
+      message.success('Đã hoàn tác đối chiếu thành công. Operator có thể cập nhật lại.');
+      setErrorModalOpen(false);
+      loadData();
+    } catch (err) {
+      message.error('Lỗi khi hoàn tác đối chiếu');
+    }
+  };
+
   // ===== COLUMNS =====
   const columns = [
     {
@@ -155,6 +196,17 @@ export default function PurchasePlanPage() {
           : '0 VND',
       sorter: (a, b) => a.proposedCost - b.proposedCost,
     },
+    
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      render: (status) => {
+        const config = STATUS_CONFIG[status] || { label: status, color: 'default' };
+        return <Tag color={config.color}>{config.label}</Tag>;
+      },
+    },
     {
       title: 'Ưu tiên',
       dataIndex: 'priority',
@@ -166,12 +218,7 @@ export default function PurchasePlanPage() {
       },
       sorter: (a, b) => a.priority - b.priority,
     },
-    {
-      title: 'Quản lý',
-      dataIndex: 'managerName',
-      key: 'managerName',
-      width: 150,
-    },
+    
     {
       title: 'Hành động',
       key: 'action',
@@ -187,14 +234,27 @@ export default function PurchasePlanPage() {
           >
             Chi tiết
           </Button>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => handleAddReception(record)}
-            type="default"
-          >
-            ĐC xe
-          </Button>
+          
+          {/* Nút Đối chiếu xe cho Operator: Chỉ hiện khi trạng thái là Approved */}
+          {!isManager && !isAccountant && record.status === 'Approved' && (
+            <Button size="small" icon={<PlusOutlined />} onClick={() => handleAddReception(record)} type="default">
+              ĐC xe
+            </Button>
+          )}
+
+          {/* Hiển thị trạng thái đang chờ thanh toán cho Operator thay vì nút ẩn */}
+          {!isManager && !isAccountant && record.status === 'Received_Pending_Payment' && (
+             <span style={{ color: '#1890ff', fontSize: '13px', fontWeight: 500 }}>Đang chờ TT</span>
+          )}
+
+          {/* Nút Xác nhận thanh toán cho Kế toán: Hiện khi chờ TT VÀ đề xuất thuộc chi nhánh của kế toán */}
+          {isAccountant && record.status === 'Received_Pending_Payment' && (!user?.branchId || record.branchDetails?.some(b => b.branchId === user?.branchId)) && (
+            <Popconfirm title="Xác nhận thanh toán và tạo xe mới?" onConfirm={() => handleConfirmPayment(record.proposalId)}>
+              <Button size="small" type="primary">
+                Xác nhận TT
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -292,6 +352,18 @@ export default function PurchasePlanPage() {
                     key: 'branchName',
                   },
                   {
+                    title: 'Nhãn hiệu',
+                    dataIndex: 'manufacturer',
+                    key: 'manufacturer',
+                    render: (v) => v || '-',
+                  },
+                  {
+                    title: 'Số chỗ',
+                    dataIndex: 'seats',
+                    key: 'seats',
+                    render: (v) => v ? `${v} chỗ` : '-',
+                  },
+                  {
                     title: 'Số lượng',
                     dataIndex: 'proposedQuantity',
                     key: 'proposedQuantity',
@@ -345,6 +417,30 @@ export default function PurchasePlanPage() {
           onSuccess={handleReceptionCreated}
         />
       )}
+
+      {/* Modal báo lỗi và Hoàn tác */}
+      <Modal
+        title="Lỗi xác nhận thanh toán"
+        open={errorModalOpen}
+        onCancel={() => setErrorModalOpen(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setErrorModalOpen(false)}>
+            Đóng
+          </Button>,
+          <Button key="rollback" type="primary" danger onClick={handleRollback}>
+            Hoàn tác đối chiếu
+          </Button>,
+        ]}
+      >
+        <Alert
+          message="Không thể tạo xe mới"
+          description={paymentErrorMsg}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <p>Bạn có muốn hoàn tác lại quá trình đối chiếu để Operator nhập lại thông tin đúng không?</p>
+      </Modal>
     </div>
   );
 }

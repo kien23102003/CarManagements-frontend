@@ -27,6 +27,12 @@ const proposalApi = {
   /** Lấy kế hoạch mua theo chi nhánh (Manager xem tất cả) */
   getPurchasePlansByBranch: (branchId) =>
     axiosClient.get(`/purchase-proposals/purchase-plans?branchId=${branchId}`),
+
+  /** Kế toán xác nhận thanh toán để tự động tạo xe mới */
+  confirmPayment: (id) => axiosClient.post(`/purchase-proposals/${id}/confirm-payment`),
+
+  /** Kế toán hoàn tác đối chiếu khi có lỗi */
+  rollbackReception: (id, data) => axiosClient.post(`/purchase-proposals/${id}/rollback-reception`, data),
 };
 
 export default proposalApi;
