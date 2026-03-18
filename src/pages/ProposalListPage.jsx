@@ -61,9 +61,7 @@ export default function ProposalListPage() {
         (r) => r === 'Branch Asset Accountant' || r === 'Chief Accountant'
     );
     // const isOperator = user?.roles?.includes('Operator');
-=======
     const isOperator = user?.roles?.includes('Operator');
->>>>>>> parent of cf95541 (Merge branch 'main' of https://github.com/kien23102003/CarManagements-frontend)
 
     useEffect(() => {
         loadData();
