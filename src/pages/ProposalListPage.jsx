@@ -61,6 +61,7 @@ export default function ProposalListPage() {
 
     // Kiểm tra quyền (Roles là mảng nên dùng .includes)
     const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
+    const isAccountant = user?.roles?.some(r => r === 'Branch Asset Accountant' || r === 'Chief Accountant');
    // const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
