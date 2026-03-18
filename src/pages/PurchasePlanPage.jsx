@@ -4,7 +4,7 @@ import {
   Button,
   Tag,
   Space,
-  message,
+  App,
   Modal,
   Input,
   Card,
@@ -55,6 +55,7 @@ export default function PurchasePlanPage() {
   const [errorProposalId, setErrorProposalId] = useState(null);
 
   const { user } = useAuth();
+  const { message } = App.useApp();
   const isManager = user?.roles?.some(
     (r) => r === 'Executive Management' || r === 'Manager'
   );
@@ -72,7 +73,7 @@ export default function PurchasePlanPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await proposalApi.getPurchasePlans();
+      const res = await proposalApi.getList();
       console.log('Purchase Plans Response:', res);
       // Xử lý response giống như ProposalListPage
       const planData = res?.data?.data || res?.data || [];
@@ -90,8 +91,8 @@ export default function PurchasePlanPage() {
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       const matchSearch =
-        item.proposalId.toString().includes(searchText) ||
-        item.description?.toLowerCase().includes(searchText.toLowerCase());
+        String(item?.proposalId ?? '').includes(searchText) ||
+        item?.description?.toLowerCase().includes(searchText.toLowerCase());
 
       return matchSearch;
     });
