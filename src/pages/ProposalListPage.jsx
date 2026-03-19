@@ -62,7 +62,7 @@ export default function ProposalListPage() {
     // Kiểm tra quyền (Roles là mảng nên dùng .includes)
     const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
     const isAccountant = user?.roles?.some(r => r === 'Branch Asset Accountant' || r === 'Chief Accountant');
-   // const isOperator = user?.roles?.includes('Operator');
+    // const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
         loadData();
@@ -144,147 +144,151 @@ export default function ProposalListPage() {
     };
 
     const columns = [
-    {
-        title: 'Mã',
-        dataIndex: 'proposalId',
-        sorter: (a, b) => a.proposalId - b.proposalId,
-        render: (id) => <b>#{id}</b>,
-    },
-    {
-        title: 'Ngày tạo',
-        dataIndex: 'createdDate',
-        sorter: (a, b) =>
-            dayjs(a.createdDate).unix() -
-            dayjs(b.createdDate).unix(),
-        render: (date) =>
-            date ? dayjs(date).format('DD/MM/YYYY') : '-',
-    },
-    {
-        title: 'Chi phí',
-        dataIndex: 'proposedCost',
-        sorter: (a, b) => a.proposedCost - b.proposedCost,
-        render: (cost) =>
-            cost
-                ? cost.toLocaleString('vi-VN') + ' đ'
-                : '0 đ',
-    },
-    {
-        title: 'Mô tả',
-        dataIndex: 'description',
-        render: (text) => {
-            if (!text) return '-';
-
-            const [main, rejectedPart] = text.split('\nRejected:');
-
-            return (
-                <div>
-                    <div>{main}</div>
-
-                    {rejectedPart && (
-                        <div
-                            style={{
-                                marginTop: 6,
-                                padding: '6px 10px',
-                                background: '#fff2f0',
-                                border: '1px solid #ffccc7',
-                                borderRadius: 6,
-                                color: '#cf1322',
-                                fontSize: 13,
-                            }}
-                        >
-                            <b>Lý do từ chối:</b> {rejectedPart.trim()}
-                        </div>
-                    )}
-                </div>
-            );
+        {
+            title: 'Mã',
+            dataIndex: 'proposalId',
+            sorter: (a, b) => a.proposalId - b.proposalId,
+            render: (id) => <b>#{id}</b>,
         },
-    },
-    {
-        title: 'Trạng thái',
-        dataIndex: 'status',
-        render: (status) => {
-            const config = STATUS_CONFIG[status] || {
-                label: status,
-                color: 'default',
-            };
-
-            return (
-                <Tag
-                    color={config.color}
-                    style={{
-                        borderRadius: 20,
-                        padding: '4px 12px',
-                        fontWeight: 500,
-                    }}
-                >
-                    {config.label}
-                </Tag>
-            );
+        {
+            title: 'Ngày tạo',
+            dataIndex: 'createdDate',
+            sorter: (a, b) =>
+                dayjs(a.createdDate).unix() -
+                dayjs(b.createdDate).unix(),
+            render: (date) =>
+                date ? dayjs(date).format('DD/MM/YYYY') : '-',
         },
-    },
+        {
+            title: 'Chi phí',
+            dataIndex: 'proposedCost',
+            sorter: (a, b) => a.proposedCost - b.proposedCost,
+            render: (cost) =>
+                cost
+                    ? cost.toLocaleString('vi-VN') + ' đ'
+                    : '0 đ',
+        },
+        {
+            title: 'Mô tả',
+            dataIndex: 'description',
+            render: (text) => {
+                if (!text) return '-';
 
-    {
-    title: 'Hành động',
-    key: 'actions',
-    align: 'center',
-    width: 300,
-    render: (_, record) => {
-        // Chỉ cho phép Duyệt, Từ chối, Hủy khi đề xuất đang ở trạng thái Chờ duyệt (Pending)
-        const disabled = record.status !== 'Pending';
+                const [main, rejectedPart] = text.split('\nRejected:');
 
-        return (
-            <Space>
-                <Button
-                    size="small"
-                    icon={<SearchOutlined />}
-                    onClick={() => handleViewDetail(record)}
-                >
-                    Chi tiết
-                </Button>
+                return (
+                    <div>
+                        <div>{main}</div>
 
-                {/* CHỈ HIỂN THỊ NÚT DUYỆT/TỪ CHỐI NẾU LÀ MANAGER */}
-                {isExecutive && (
-                    <>
-                        <Button
-                            size="small"
-                            type="primary"
-                            disabled={disabled}
-                            onClick={() => handleApprove(record.proposalId)}
-                        >
-                            Duyệt
-                        </Button>
-                        <Button
-                            size="small"
-                            danger
-                            disabled={disabled}
-                            onClick={() => {
-                                setSelectedId(record.proposalId);
-                                setRejectModalOpen(true);
-                            }}
-                        >
-                            Từ chối
-                        </Button>
-                    </>
-                )}
-                <Popconfirm
-                    title="Hủy đề xuất này?"
-                    onConfirm={() => handleDelete(record.id)}
-                    disabled={disabled}
-                >
-                    <Button
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        disabled={disabled}
+                        {rejectedPart && (
+                            <div
+                                style={{
+                                    marginTop: 6,
+                                    padding: '6px 10px',
+                                    background: '#fff2f0',
+                                    border: '1px solid #ffccc7',
+                                    borderRadius: 6,
+                                    color: '#cf1322',
+                                    fontSize: 13,
+                                }}
+                            >
+                                <b>Lý do từ chối:</b> {rejectedPart.trim()}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
+        },
+        {
+            title: 'Trạng thái',
+            dataIndex: 'status',
+            render: (status) => {
+                const config = STATUS_CONFIG[status] || {
+                    label: status,
+                    color: 'default',
+                };
+
+                return (
+                    <Tag
+                        color={config.color}
+                        style={{
+                            borderRadius: 20,
+                            padding: '4px 12px',
+                            fontWeight: 500,
+                        }}
                     >
-                        Hủy
-                    </Button>
-                </Popconfirm>
-            </Space>
-        );
-    },
-}
-];
+                        {config.label}
+                    </Tag>
+                );
+            },
+        },
+
+        {
+            title: 'Hành động',
+            key: 'actions',
+            align: 'center',
+            width: 300,
+            render: (_, record) => {
+                // Chỉ cho phép Duyệt, Từ chối, Hủy khi đề xuất đang ở trạng thái Chờ duyệt (Pending)
+                const disabled = record.status !== 'Pending';
+
+                return (
+                    <Space>
+                        <Button
+                            size="small"
+                            icon={<SearchOutlined />}
+                            onClick={() => handleViewDetail(record)}
+                        >
+                            Chi tiết
+                        </Button>
+
+                        {/* CHỈ HIỂN THỊ NÚT DUYỆT/TỪ CHỐI NẾU LÀ MANAGER */}
+                        {isExecutive && (
+                            <>
+                                <Button
+                                    size="small"
+                                    type="primary"
+                                    disabled={disabled}
+                                    onClick={() => handleApprove(record.proposalId)}
+                                >
+                                    Duyệt
+                                </Button>
+                                <Button
+                                    size="small"
+                                    danger
+                                    disabled={disabled}
+                                    onClick={() => {
+                                        setSelectedId(record.proposalId);
+                                        setRejectModalOpen(true);
+                                    }}
+                                >
+                                    Từ chối
+                                </Button>
+                            </>
+                        )}
+
+                        {/* ẨN NÚT HỦY ĐỐI VỚI KẾ TOÁN (Chỉ có Quản lý hoặc Người tạo mới được Hủy) */}
+                        {!isAccountant && (
+                            <Popconfirm
+                                title="Hủy đề xuất này?"
+                                onConfirm={() => handleDelete(record.proposalId)}
+                                disabled={disabled}
+                            >
+                                <Button
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    disabled={disabled}
+                                >
+                                    Hủy
+                                </Button>
+                            </Popconfirm>
+                        )}
+                    </Space>
+                );
+            },
+        }
+    ];
 
     return (
         <div>
@@ -408,9 +412,9 @@ export default function ProposalListPage() {
                                                     { title: 'Nhãn hiệu', dataIndex: 'manufacturer', key: 'manufacturer', render: (v) => v || '-' },
                                                     { title: 'Số chỗ', dataIndex: 'seats', key: 'seats', render: (v) => v ? `${v} chỗ` : '-' },
                                                     { title: 'Số lượng', dataIndex: 'proposedQuantity', key: 'proposedQuantity', align: 'center' },
-                                                    { 
-                                                        title: 'Đơn giá', 
-                                                        dataIndex: 'unitPrice', 
+                                                    {
+                                                        title: 'Đơn giá',
+                                                        dataIndex: 'unitPrice',
                                                         key: 'unitPrice',
                                                         align: 'right',
                                                         render: (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
