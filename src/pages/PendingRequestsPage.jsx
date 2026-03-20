@@ -33,8 +33,6 @@ export default function PendingRequestsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  useEffect(() => { loadData(); }, []);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -43,6 +41,10 @@ export default function PendingRequestsPage() {
     } catch { message.error('Không thể tải danh sách yêu cầu'); }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filtered = items.filter((r) => {
     if (typeFilter && r.type !== typeFilter) return false;

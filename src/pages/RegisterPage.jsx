@@ -45,14 +45,6 @@ export default function RegisterPage() {
   const normalizedRoles = (user?.roles || []).map(normalizeRole);
   const isAdmin = normalizedRoles.includes('admin');
 
-  useEffect(() => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
-    loadAccounts(includeDeactivated);
-  }, [isAdmin, includeDeactivated]);
-
   const loadAccounts = async (include) => {
     setLoading(true);
     try {
@@ -64,6 +56,14 @@ export default function RegisterPage() {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+    loadAccounts(includeDeactivated);
+  }, [isAdmin, includeDeactivated]);
 
   const handleCreate = async () => {
     try {

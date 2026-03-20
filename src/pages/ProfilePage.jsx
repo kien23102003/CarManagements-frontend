@@ -8,8 +8,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadProfile(); }, []);
-
   const loadProfile = async () => {
     try {
       const { data } = await userApi.getProfile();
@@ -23,6 +21,11 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
   if (!profile) return <Card><div style={{ textAlign: 'center', padding: 40, color: '#8c8c8c' }}>Không thể tải thông tin người dùng.</div></Card>;

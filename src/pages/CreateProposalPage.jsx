@@ -19,6 +19,7 @@ const { TextArea } = Input;
 const { Title } = Typography;
 
 export default function CreateProposalPage() {
+
     const [form] = Form.useForm();
     const navigate = useNavigate();
 
@@ -66,6 +67,7 @@ export default function CreateProposalPage() {
                         { required: true, message: 'Vui lòng nhập lý do' },
                         { min: 5, message: 'Tối thiểu 5 ký tự' },
                     ]}
+
                 >
                     <TextArea rows={4} placeholder="Nhập lý do đề xuất..." />
                 </Form.Item>
