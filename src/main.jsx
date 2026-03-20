@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ConfigProvider, App as AntdApp } from 'antd';
 import viVN from 'antd/locale/vi_VN';
+import { Toaster } from 'react-hot-toast';
 import App from './App';
 import './index.css';
 
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     >
       <AntdApp>
         <App />
+        <Toaster />
       </AntdApp>
     </ConfigProvider>
   </React.StrictMode>

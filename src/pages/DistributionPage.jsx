@@ -30,7 +30,9 @@ export default function DistributionPage() {
   const roles = user?.roles || [];
   const isExec = roles.includes('Executive Management');
   const isOperator = roles.includes('Operator');
+
   const userBranchId = user?.branchId;
+
 
   const loadData = async () => {
     setLoading(true);
@@ -47,6 +49,7 @@ export default function DistributionPage() {
     } catch { message.error('Không thể tải dữ liệu'); }
     setLoading(false);
   };
+
 
   useEffect(() => { loadData(); }, [tab, statusFilter]);
 

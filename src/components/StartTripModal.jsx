@@ -1,0 +1,162 @@
+import { useEffect, useMemo, useState } from "react"
+import { Form, Input, InputNumber, Modal, Select, Typography } from "antd"
+import { getTripHistoryByVehicle, startTrip } from "../services/tripLogService"
+
+const { Text } = Typography
+
+export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
+    const [form] = Form.useForm()
+    const [loading, setLoading] = useState(false)
+    const [minStartMileage, setMinStartMileage] = useState(null)
+
+    const driverOptions = useMemo(() => {
+        if (!vehicle?.currentDriverId) return []
+        return [{
+            label: vehicle.currentDriverName || `Tài xế #${vehicle.currentDriverId}`,
+            value: vehicle.currentDriverId,
+        }]
+    }, [vehicle])
+
+    useEffect(() => {
+        form.setFieldsValue({
+            driverId: vehicle?.currentDriverId || undefined,
+        })
+        setMinStartMileage(null)
+    }, [form, vehicle])
+
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (!open || !vehicle?.vehicleId) return
+            try {
+                const data = await getTripHistoryByVehicle(vehicle.vehicleId)
+                const trips = data?.trips || []
+                const currentDriverId = vehicle?.currentDriverId
+                if (currentDriverId) {
+                    const lastCompletedByDriver = trips
+                        .filter((t) => t?.endTime && t?.driverId === currentDriverId)
+                        .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0]
+
+                    if (lastCompletedByDriver?.endMileage != null) {
+                        setMinStartMileage(Number(lastCompletedByDriver.endMileage))
+                    }
+                }
+            } catch (error) {
+                setMinStartMileage(null)
+            } finally {
+            }
+        }
+
+        loadHistory()
+    }, [open, vehicle, form])
+
+    const handleFinish = async (values) => {
+        if (!vehicle?.vehicleId) return
+        setLoading(true)
+        try {
+            const payload = {
+                vehicleId: vehicle.vehicleId,
+                driverId: values.driverId,
+                startMileage: values.startMileage,
+                origin: values.origin,
+                destination: values.destination,
+                purpose: values.purpose || "",
+            }
+
+            await startTrip(payload)
+            form.resetFields()
+            onSuccess?.()
+        } catch (error) {
+            const message = error?.response?.data?.message || "Không thể bắt đầu chuyến."
+            Modal.error({
+                title: "Bắt đầu chuyến thất bại",
+                content: message,
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <Modal
+            open={open}
+            onCancel={onCancel}
+            onOk={() => form.submit()}
+            okText="Bắt đầu chuyến"
+            cancelText="Hủy"
+            confirmLoading={loading}
+            okButtonProps={{ disabled: !vehicle?.vehicleId || driverOptions.length === 0 }}
+            title="Tạo chuyến mới"
+            destroyOnClose
+        >
+            <div style={{ marginBottom: 16 }}>
+                <Text strong>{vehicle?.licensePlate || "Xe chưa chọn"}</Text>
+                <div style={{ color: "#64748b", fontSize: 12 }}>
+                    {vehicle?.currentBranchName || "Chưa có chi nhánh"} · {vehicle?.status || "Chưa có trạng thái"}
+                </div>
+            </div>
+
+            <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleFinish}
+                initialValues={{
+                    driverId: vehicle?.currentDriverId || undefined,
+                }}
+            >
+                <Form.Item
+                    label="Tài xế"
+                    name="driverId"
+                    rules={[{ required: true, message: "Vui lòng chọn tài xế" }]}
+                >
+                    <Select
+                        placeholder={driverOptions.length ? "Chọn tài xế" : "Xe chưa có tài xế"}
+                        options={driverOptions}
+                        disabled={driverOptions.length === 0}
+                        showSearch
+                        optionFilterProp="label"
+                    />
+                </Form.Item>
+
+                <Form.Item
+                    label="Số km bắt đầu"
+                    name="startMileage"
+                    rules={[
+                        { required: true, message: "Vui lòng nhập số km bắt đầu" },
+                        () => ({
+                            validator(_, value) {
+                                if (value == null || value === "") return Promise.resolve()
+                                if (minStartMileage != null && Number(value) < minStartMileage) {
+                                    return Promise.reject(new Error("Số km bắt đầu phải lớn hơn hoặc bằng km kết thúc chuyến trước của tài xế"))
+                                }
+                                return Promise.resolve()
+                            },
+                        }),
+                    ]}
+                    extra={minStartMileage != null ? `Km tối thiểu: ${minStartMileage}` : undefined}
+                >
+                    <InputNumber min={1} style={{ width: "100%" }} placeholder="Nhập số km" />
+                </Form.Item>
+
+                <Form.Item
+                    label="Điểm đi"
+                    name="origin"
+                    rules={[{ required: true, message: "Vui lòng nhập điểm đi" }]}
+                >
+                    <Input placeholder="Ví dụ: Hà Nội" />
+                </Form.Item>
+
+                <Form.Item
+                    label="Điểm đến"
+                    name="destination"
+                    rules={[{ required: true, message: "Vui lòng nhập điểm đến" }]}
+                >
+                    <Input placeholder="Ví dụ: Hồ Chí Minh" />
+                </Form.Item>
+
+                <Form.Item label="Mục đích" name="purpose">
+                    <Input placeholder="Tuỳ chọn" />
+                </Form.Item>
+            </Form>
+        </Modal>
+    )
+}

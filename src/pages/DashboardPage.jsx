@@ -59,7 +59,9 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
+
   useEffect(() => { loadData(); }, []);
+
 
   const STAT_CARDS = [
     { icon: <CarOutlined />, title: 'Tổng số xe', value: stats.vehicles, color: '#3b82f6', path: '/vehicles' },
