@@ -30,8 +30,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { loadData(); }, []);
-
   const loadData = async () => {
     try {
       const [vRes, mRes, tRes, pRes, proposalRes] = await Promise.allSettled([
@@ -39,7 +37,7 @@ export default function DashboardPage() {
         maintenanceApi.getList({ status: 'Pending' }),
         distributionApi.getTransfers({ status: 'Pending' }),
         pendingApi.getList(),
-        proposalApi.getList(),   // 👈 thêm dòng này
+        proposalApi.getList(),
       ]);
 
       const vehicles = vRes.status === 'fulfilled' ? (vRes.value.data?.data || vRes.value.data || []) : [];
@@ -54,12 +52,14 @@ export default function DashboardPage() {
         maintenance: Array.isArray(maintenance) ? maintenance.length : 0,
         transfers: Array.isArray(transfers) ? transfers.length : 0,
         pending: Array.isArray(pending) ? pending.length : 0,
-        proposals: Array.isArray(proposals) ? proposals.length : 0, // 👈 thêm
+        proposals: Array.isArray(proposals) ? proposals.length : 0,
       });
       setRecentMaintenance(Array.isArray(maintenance) ? maintenance.slice(0, 5) : []);
     } catch { /* ignore */ }
     setLoading(false);
   };
+
+  useEffect(() => { loadData(); }, []);
 
   const STAT_CARDS = [
     { icon: <CarOutlined />, title: 'Tổng số xe', value: stats.vehicles, color: '#3b82f6', path: '/vehicles' },

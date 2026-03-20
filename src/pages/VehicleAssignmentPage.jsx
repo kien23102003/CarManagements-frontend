@@ -53,12 +53,6 @@ export default function VehicleAssignmentPage() {
     roles.includes('Branch Asset Accountant') ||
     roles.includes('Executive Management');
 
-  useEffect(() => {
-    if (!hasPermission) return;
-    loadVehicles();
-    loadDrivers();
-  }, [hasPermission]);
-
   const loadDrivers = async () => {
     try {
       const { data } = await assetApi.getDrivers();
@@ -73,11 +67,17 @@ export default function VehicleAssignmentPage() {
     try {
       const { data } = await assetApi.getList();
       setVehicles(data.data || data || []);
-    } catch (err) {
+    } catch {
       message.error('Không thể tải danh sách xe');
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    if (!hasPermission) return;
+    loadVehicles();
+    loadDrivers();
+  }, [hasPermission]);
 
   if (!hasPermission) {
     return (

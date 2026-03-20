@@ -7,7 +7,6 @@ import {
   DashboardOutlined,
 } from '@ant-design/icons';
 import vehicleApi from '../api/vehicleApi';
-import { useAuth } from '../services/AuthContext';
 
 const fmt = (v) => (v || 0).toLocaleString('vi-VN') + ' đ';
 const fmtKm = (v) => (v || 0).toLocaleString('vi-VN') + ' km';
@@ -17,9 +16,6 @@ export default function VehicleCostStatsPage() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState('all');
-  const { user } = useAuth();
-
-  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
@@ -29,6 +25,8 @@ export default function VehicleCostStatsPage() {
     } catch { /* ignore */ }
     setLoading(false);
   };
+
+  useEffect(() => { loadData(); }, []);
 
   const { branchStats, totalStats, branches, filteredVehicles } = useMemo(() => {
     const map = {};

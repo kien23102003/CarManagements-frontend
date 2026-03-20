@@ -1,9 +1,9 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import vehicleApi from '../api/vehicleApi';
 import { useAuth } from '../services/AuthContext';
-import { Row, Col, Card, Statistic, Input, Select, Collapse, Table, Tag, Space, Button, message } from 'antd';
-import { PlusOutlined, EditOutlined, CarOutlined, BankOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, Input, Select, Collapse, Table, Tag, Space, Button, Avatar, message } from 'antd';
+import { PlusOutlined, EditOutlined, CarOutlined, BankOutlined, PictureOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
   Active: { label: 'Hoạt động', color: 'green' },
@@ -32,22 +32,32 @@ export default function VehicleListPage() {
   const roles = user?.roles || [];
   const canCreateDisposal = roles.includes('Operator');
 
-  useEffect(() => {
-    loadVehicles();
-  }, [statusFilter]);
-
   const loadVehicles = async () => {
     setLoading(true);
     try {
       const params = {};
       if (statusFilter) params.status = statusFilter;
       const { data } = await vehicleApi.getList(params);
-      setVehicles(data.data || data || []);
+      const list = data.data || data || [];
+
+      // Fetch image URLs for all vehicles
+      const imagePromises = list.map((v) =>
+        vehicleApi.getImage(v.id).then((r) => ({ id: v.id, url: r.data?.imageUrl })).catch(() => ({ id: v.id, url: null }))
+      );
+      const images = await Promise.all(imagePromises);
+      const imageMap = {};
+      images.forEach((img) => { imageMap[img.id] = img.url; });
+
+      setVehicles(list.map((v) => ({ ...v, imageUrl: imageMap[v.id] || null })));
     } catch {
       message.error('Không thể tải danh sách xe');
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadVehicles();
+  }, [statusFilter]);
 
   const filtered = useMemo(
     () =>
@@ -104,6 +114,15 @@ export default function VehicleListPage() {
   };
 
   const columns = [
+    {
+      title: 'Ảnh',
+      dataIndex: 'imageUrl',
+      key: 'image',
+      width: 60,
+      render: (url) => url
+        ? <Avatar shape="square" size={40} src={url} />
+        : <Avatar shape="square" size={40} icon={<PictureOutlined />} style={{ backgroundColor: '#f0f0f0', color: '#bbb' }} />,
+    },
     { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '-'}</strong> },
     { title: 'Hãng xe', dataIndex: 'manufacturer', key: 'mfr', render: (v) => v || '-' },
     { title: 'Dòng xe', dataIndex: 'modelName', key: 'model', render: (v) => v || '-' },

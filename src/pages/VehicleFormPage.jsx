@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import vehicleApi from '../api/vehicleApi';
 import disposalProposalApi from '../api/disposalProposalApi';
@@ -11,6 +11,8 @@ import {
   Select,
   DatePicker,
   Button,
+  Upload,
+  Image,
   Spin,
   message,
   Tooltip,
@@ -18,7 +20,7 @@ import {
   Tag,
   Space,
 } from 'antd';
-import { ArrowLeftOutlined, LockOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, LockOutlined, UploadOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const ROLE_FIELDS = {
@@ -49,6 +51,8 @@ export default function VehicleFormPage() {
   const [disposalHistory, setDisposalHistory] = useState([]);
   const [disposalLoading, setDisposalLoading] = useState(false);
   const [vehicleStatus, setVehicleStatus] = useState('');
+  const [imageUrl, setImageUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -83,6 +87,7 @@ export default function VehicleFormPage() {
       loadVehicle();
       loadDisposalHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadDropdowns = async () => {
@@ -129,6 +134,14 @@ export default function VehicleFormPage() {
       });
       setVehicleStatus(v.status || '');
 
+      // Fetch image URL separately
+      try {
+        const imgRes = await vehicleApi.getImage(id);
+        setImageUrl(imgRes.data?.imageUrl || null);
+      } catch {
+        setImageUrl(null);
+      }
+
       if (v.currentDriverId && v.currentDriverName) {
         setDriverOptions((prev) => {
           if (prev.some((o) => o.value === v.currentDriverId)) return prev;
@@ -153,6 +166,37 @@ export default function VehicleFormPage() {
       setDisposalHistory([]);
     } finally {
       setDisposalLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (file) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      message.error('Chỉ chấp nhận file JPEG, PNG, GIF, WebP');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('Kích thước file tối đa 5MB');
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data } = await vehicleApi.uploadImage(id, file);
+      setImageUrl(data.imageUrl);
+      message.success('Upload ảnh thành công');
+    } catch {
+      message.error('Không thể upload ảnh');
+    }
+    setUploading(false);
+  };
+
+  const handleImageDelete = async () => {
+    try {
+      await vehicleApi.deleteImage(id);
+      setImageUrl(null);
+      message.success('Đã xóa ảnh');
+    } catch {
+      message.error('Không thể xóa ảnh');
     }
   };
 
@@ -304,6 +348,65 @@ export default function VehicleFormPage() {
             dataSource={disposalHistory.slice(0, 5)}
             pagination={false}
           />
+        </Card>
+      )}
+
+      {isEdit && (
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <PictureOutlined style={{ color: '#1890ff' }} />
+              <span>Ảnh xe</span>
+            </div>
+          }
+          style={{ borderRadius: 12, marginTop: 16 }}
+        >
+          {imageUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <Image
+                src={imageUrl}
+                alt="Ảnh xe"
+                style={{ maxWidth: '100%', maxHeight: 400, borderRadius: 8, objectFit: 'contain' }}
+              />
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Upload
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    handleImageUpload(file);
+                    return false;
+                  }}
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                >
+                  <Button icon={<UploadOutlined />} loading={uploading}>
+                    Thay đổi ảnh
+                  </Button>
+                </Upload>
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={handleImageDelete}
+                >
+                  Xóa ảnh
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Upload.Dragger
+              showUploadList={false}
+              beforeUpload={(file) => {
+                handleImageUpload(file);
+                return false;
+              }}
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              style={{ padding: '20px 0' }}
+            >
+              <p className="ant-upload-drag-icon">
+                <PictureOutlined style={{ fontSize: 48, color: '#999' }} />
+              </p>
+              <p className="ant-upload-text">Kéo thả ảnh vào đây hoặc nhấn để chọn</p>
+              <p className="ant-upload-hint">Hỗ trợ JPEG, PNG, GIF, WebP. Tối đa 5MB.</p>
+            </Upload.Dragger>
+          )}
         </Card>
       )}
     </div>
