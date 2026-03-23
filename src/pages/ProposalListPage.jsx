@@ -14,6 +14,7 @@ import {
     Select,
     Row,
     Col,
+    Divider,
 } from 'antd';
 import {
     CheckOutlined,
@@ -402,10 +403,5 @@ export default function ProposalListPage() {
                                     </Modal>
                                 )}
                             </Card>
-                        ),
-                    },
-                ]}
-            />
-        </div>
-    );
+        );
 }
