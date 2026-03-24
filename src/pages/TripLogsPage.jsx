@@ -6,7 +6,7 @@ import utc from "dayjs/plugin/utc"
 import timezone from "dayjs/plugin/timezone"
 import StartTripModal from "../components/StartTripModal"
 import EndTripModal from "../components/EndTripModal"
-import { getManageVehicles, getTripHistoryByVehicle } from "../services/tripLogService"
+import { getAllTripHistory, getManageVehicles, getTripHistoryByVehicle } from "../services/tripLogService"
 import "../styles/tripLogs.css"
 
 const { Title, Text } = Typography
@@ -126,7 +126,8 @@ function TripLogsPage() {
     const [manageLoading, setManageLoading] = useState(false)
 
     const [historyVehicleId, setHistoryVehicleId] = useState(null)
-    const [historyData, setHistoryData] = useState(null)
+    const [historyTrips, setHistoryTrips] = useState([])
+    const [historyVehicleInfo, setHistoryVehicleInfo] = useState(null)
     const [historyLoading, setHistoryLoading] = useState(false)
 
     const [startModalOpen, setStartModalOpen] = useState(false)
@@ -171,11 +172,30 @@ function TripLogsPage() {
         try {
             const res = await getTripHistoryByVehicle(vehicleId)
             const data = res?.data ?? res
-            setHistoryData(data || null)
+            setHistoryVehicleInfo(data || null)
+            setHistoryTrips(Array.isArray(data?.trips) ? data.trips : [])
         } catch (error) {
             console.error("Failed to load trip history", error)
             toast.error("Không thể tải lịch sử chuyến.")
-            setHistoryData(null)
+            setHistoryVehicleInfo(null)
+            setHistoryTrips([])
+        } finally {
+            setHistoryLoading(false)
+        }
+    }
+
+    const loadAllTripHistory = async () => {
+        setHistoryLoading(true)
+        try {
+            const res = await getAllTripHistory()
+            const data = res?.data ?? res
+            setHistoryVehicleInfo(null)
+            setHistoryTrips(Array.isArray(data) ? data : [])
+        } catch (error) {
+            console.error("Failed to load trip history", error)
+            toast.error("Không thể tải lịch sử chuyến.")
+            setHistoryVehicleInfo(null)
+            setHistoryTrips([])
         } finally {
             setHistoryLoading(false)
         }
@@ -185,12 +205,20 @@ function TripLogsPage() {
         loadManageVehicles(manageTab)
     }, [manageTab])
 
+    useEffect(() => {
+        if (activeMainTab !== "history") return
+        if (historyVehicleId) {
+            loadTripHistory(historyVehicleId)
+            return
+        }
+        loadAllTripHistory()
+    }, [activeMainTab, historyVehicleId])
+
     const handleViewHistory = (vehicle) => {
         const id = vehicle?.vehicleId
         if (!id) return
         setHistoryVehicleId(id)
         setActiveMainTab("history")
-        loadTripHistory(id)
     }
 
     const handleStartTrip = (vehicle) => {
@@ -326,6 +354,14 @@ function TripLogsPage() {
     ]
 
     const historyColumns = [
+        ...(!historyVehicleId ? [
+            {
+                title: "Biển số",
+                dataIndex: "vehicleLicensePlate",
+                key: "vehicleLicensePlate",
+                render: (_, record) => record.vehicleLicensePlate || (record.vehicleId ? `Xe #${record.vehicleId}` : "--"),
+            },
+        ] : []),
         {
             title: "Mã chuyến",
             dataIndex: "tripId",
@@ -382,7 +418,9 @@ function TripLogsPage() {
         },
     ]
 
-    const historyTrips = historyData?.trips || []
+    const hasHistorySelection = Boolean(historyVehicleId)
+    const historyInfo = historyVehicleInfo
+    const isHistoryEmpty = historyTrips.length === 0
     const vehiclesForSelect = allVehicles.length ? allVehicles : manageVehicles
 
     return (
@@ -432,12 +470,16 @@ function TripLogsPage() {
                                 <div className="history-toolbar">
                                     <Select
                                         showSearch
+                                        allowClear
                                         optionFilterProp="label"
-                                        placeholder="Chọn xe để xem lịch sử"
+                                        placeholder="Chọn xe để xem lịch sử (bỏ trống = tất cả)"
                                         value={historyVehicleId ?? undefined}
                                         onChange={(value) => {
+                                            if (!value) {
+                                                setHistoryVehicleId(null)
+                                                return
+                                            }
                                             setHistoryVehicleId(value)
-                                            loadTripHistory(value)
                                         }}
                                         options={vehiclesForSelect.map((vehicle) => ({
                                             label: vehicle.licensePlate || `Xe #${vehicle.vehicleId}`,
@@ -451,31 +493,33 @@ function TripLogsPage() {
                                     <div className="center-loading">
                                         <Spin />
                                     </div>
-                                ) : !historyData ? (
-                                    <Empty description="Chọn xe để xem lịch sử chuyến" />
+                                ) : isHistoryEmpty ? (
+                                    <Empty description={hasHistorySelection ? "Chưa có chuyến nào" : "Không có dữ liệu lịch sử"} />
                                 ) : (
                                     <div className="history-panel">
-                                        <div className="history-info">
-                                            <div className="history-info-header">Thông tin xe</div>
-                                            <div className="history-info-grid">
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Biển số</div>
-                                                    <div className="history-info-value">{historyData.licensePlate || `Xe #${historyData.vehicleId}`}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Trạng thái</div>
-                                                    <div className="history-info-value">{historyData.status || "--"}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Chi nhánh</div>
-                                                    <div className="history-info-value">{historyData.currentBranchName || "--"}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Tài xế</div>
-                                                    <div className="history-info-value">{historyData.currentDriverName || "--"}</div>
+                                        {hasHistorySelection && historyInfo && (
+                                            <div className="history-info">
+                                                <div className="history-info-header">Thông tin xe</div>
+                                                <div className="history-info-grid">
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Biển số</div>
+                                                        <div className="history-info-value">{historyInfo.licensePlate || `Xe #${historyInfo.vehicleId}`}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Trạng thái</div>
+                                                        <div className="history-info-value">{historyInfo.status || "--"}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Chi nhánh</div>
+                                                        <div className="history-info-value">{historyInfo.currentBranchName || "--"}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Tài xế</div>
+                                                        <div className="history-info-value">{historyInfo.currentDriverName || "--"}</div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         <div className="history-table">
                                             <Table
