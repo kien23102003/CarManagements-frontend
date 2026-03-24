@@ -1,31 +1,124 @@
-import { useEffect, useState } from "react"
-import { Badge, Button, Descriptions, Empty, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd"
+﻿import { useEffect, useState } from "react"
+import { Badge, Button, Empty, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd"
 import toast from "react-hot-toast"
+import dayjs from "dayjs"
+import utc from "dayjs/plugin/utc"
+import timezone from "dayjs/plugin/timezone"
 import StartTripModal from "../components/StartTripModal"
 import EndTripModal from "../components/EndTripModal"
-import { getManageVehicles, getTripHistoryByVehicle } from "../services/tripLogService"
+import { getAllTripHistory, getManageVehicles, getTripHistoryByVehicle } from "../services/tripLogService"
 import "../styles/tripLogs.css"
 
 const { Title, Text } = Typography
 
-const formatDateTime = (value) => {
-    if (!value) return "--"
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return "--"
-    return date.toLocaleString("vi-VN")
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+const VN_TZ = "Asia/Ho_Chi_Minh"
+const NEAR_THRESHOLD_MINUTES = 30
+
+const parseTripTime = (value) => {
+    if (!value) return null
+    const hasTimezone = /[zZ]|[+-]\d{2}:\d{2}$/.test(String(value))
+    const parsed = hasTimezone ? dayjs.utc(value) : dayjs.tz(value, VN_TZ)
+    return parsed.isValid() ? parsed : null
 }
 
-const formatDuration = (start) => {
+const formatDateTime = (value) => {
+    const parsed = parseTripTime(value)
+    if (!parsed) return "--"
+    return parsed.tz(VN_TZ).format("HH:mm DD/MM/YYYY")
+}
+
+const formatDuration = (start, now) => {
     if (!start) return "--"
-    const diffMs = Date.now() - new Date(start).getTime()
-    if (diffMs <= 0) return "0 phút"
-    const hours = Math.floor(diffMs / (1000 * 60 * 60))
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+    const startTime = parseTripTime(start)
+    if (!startTime) return "--"
+    const reference = now || dayjs().tz(VN_TZ)
+    const diffMinutes = reference.diff(startTime.tz(VN_TZ), "minute")
+    if (diffMinutes <= 0) return "0 phút"
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
     if (hours === 0) return `${minutes} phút`
     return `${hours} giờ ${minutes} phút`
 }
 
-export default function TripLogsPage() {
+const formatMinutesLabel = (minutes) => {
+    const abs = Math.abs(minutes)
+    const hours = Math.floor(abs / 60)
+    const mins = abs % 60
+    if (hours > 0) return `${hours} giờ ${mins} phút`
+    return `${mins} phút`
+}
+
+const toNumber = (value) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+}
+
+const getPlannedMinutes = (record) => {
+    if (!record) return null
+    const days = toNumber(
+        record.currentTripPlannedDurationDays ??
+        record.plannedDurationDays ??
+        record.plannedDays
+    )
+    const hours = toNumber(
+        record.currentTripPlannedDurationHours ??
+        record.plannedDurationHours ??
+        record.plannedHours
+    )
+    const minutes = toNumber(
+        record.currentTripPlannedDurationMinutes ??
+        record.plannedDurationMinutes ??
+        record.plannedMinutes
+    )
+
+    if (days != null || hours != null || minutes != null) {
+        return (days || 0) * 24 * 60 + (hours || 0) * 60 + (minutes || 0)
+    }
+
+    const direct = toNumber(
+        record.currentTripPlannedDuration ??
+        record.plannedDuration ??
+        record.currentTripPlannedMinutes ??
+        record.plannedMinutes
+    )
+    if (direct != null) return direct
+
+    return null
+}
+
+const getElapsedMinutes = (start, now) => {
+    if (!start) return null
+    const startTime = parseTripTime(start)
+    if (!startTime) return null
+    const reference = now || dayjs().tz(VN_TZ)
+    const diff = reference.diff(startTime.tz(VN_TZ), "minute")
+    return Math.max(0, diff)
+}
+
+const getRemainingMinutes = (record, now) => {
+    if (!record?.currentTripId) return null
+    const planned = getPlannedMinutes(record)
+    const elapsed = getElapsedMinutes(record.currentTripStartTime, now)
+    if (planned == null || elapsed == null) return record?.remainingMinutes ?? null
+    return planned - elapsed
+}
+
+const getRemainingStatus = (remainingMinutes, plannedMinutes, fallbackStatus) => {
+    if (remainingMinutes == null) return fallbackStatus || null
+    if (remainingMinutes < 0) return "over"
+
+    const threshold = plannedMinutes != null
+        ? Math.min(NEAR_THRESHOLD_MINUTES, Math.ceil(plannedMinutes * 0.2))
+        : NEAR_THRESHOLD_MINUTES
+
+    if (remainingMinutes <= threshold) return "near"
+    return "ok"
+}
+
+function TripLogsPage() {
     const [activeMainTab, setActiveMainTab] = useState("manage")
     const [manageTab, setManageTab] = useState("all")
     const [manageVehicles, setManageVehicles] = useState([])
@@ -33,7 +126,8 @@ export default function TripLogsPage() {
     const [manageLoading, setManageLoading] = useState(false)
 
     const [historyVehicleId, setHistoryVehicleId] = useState(null)
-    const [historyData, setHistoryData] = useState(null)
+    const [historyTrips, setHistoryTrips] = useState([])
+    const [historyVehicleInfo, setHistoryVehicleInfo] = useState(null)
     const [historyLoading, setHistoryLoading] = useState(false)
 
     const [startModalOpen, setStartModalOpen] = useState(false)
@@ -42,6 +136,17 @@ export default function TripLogsPage() {
     const [selectedTrip, setSelectedTrip] = useState(null)
     const [selectedOverDuration, setSelectedOverDuration] = useState(false)
     const [selectedStartMileage, setSelectedStartMileage] = useState(null)
+    const [selectedRemainingMinutes, setSelectedRemainingMinutes] = useState(null)
+
+    const [now, setNow] = useState(() => dayjs().tz(VN_TZ))
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNow(dayjs().tz(VN_TZ))
+        }, 30000)
+
+        return () => clearInterval(timer)
+    }, [])
 
     const loadManageVehicles = async (tabKey) => {
         setManageLoading(true)
@@ -67,11 +172,30 @@ export default function TripLogsPage() {
         try {
             const res = await getTripHistoryByVehicle(vehicleId)
             const data = res?.data ?? res
-            setHistoryData(data || null)
+            setHistoryVehicleInfo(data || null)
+            setHistoryTrips(Array.isArray(data?.trips) ? data.trips : [])
         } catch (error) {
             console.error("Failed to load trip history", error)
             toast.error("Không thể tải lịch sử chuyến.")
-            setHistoryData(null)
+            setHistoryVehicleInfo(null)
+            setHistoryTrips([])
+        } finally {
+            setHistoryLoading(false)
+        }
+    }
+
+    const loadAllTripHistory = async () => {
+        setHistoryLoading(true)
+        try {
+            const res = await getAllTripHistory()
+            const data = res?.data ?? res
+            setHistoryVehicleInfo(null)
+            setHistoryTrips(Array.isArray(data) ? data : [])
+        } catch (error) {
+            console.error("Failed to load trip history", error)
+            toast.error("Không thể tải lịch sử chuyến.")
+            setHistoryVehicleInfo(null)
+            setHistoryTrips([])
         } finally {
             setHistoryLoading(false)
         }
@@ -81,12 +205,20 @@ export default function TripLogsPage() {
         loadManageVehicles(manageTab)
     }, [manageTab])
 
+    useEffect(() => {
+        if (activeMainTab !== "history") return
+        if (historyVehicleId) {
+            loadTripHistory(historyVehicleId)
+            return
+        }
+        loadAllTripHistory()
+    }, [activeMainTab, historyVehicleId])
+
     const handleViewHistory = (vehicle) => {
         const id = vehicle?.vehicleId
         if (!id) return
         setHistoryVehicleId(id)
         setActiveMainTab("history")
-        loadTripHistory(id)
     }
 
     const handleStartTrip = (vehicle) => {
@@ -95,9 +227,11 @@ export default function TripLogsPage() {
     }
 
     const handleEndTrip = (vehicle) => {
+        const remainingMinutes = getRemainingMinutes(vehicle, now)
         setSelectedTrip(vehicle?.currentTripId)
-        setSelectedOverDuration(Boolean(vehicle?.isOverDuration))
+        setSelectedOverDuration(remainingMinutes != null ? remainingMinutes < 0 : Boolean(vehicle?.isOverDuration))
         setSelectedStartMileage(vehicle?.currentTripStartMileage ?? null)
+        setSelectedRemainingMinutes(remainingMinutes)
         setEndModalOpen(true)
     }
 
@@ -145,20 +279,59 @@ export default function TripLogsPage() {
             render: (_, record) => (
                 record.currentTripId ? (
                     <div>
-                        <div>{record.currentTripOrigin || "--"} → {record.currentTripDestination || "--"}</div>
+                        <div>{record.currentTripOrigin || "--"} -{">"} {record.currentTripDestination || "--"}</div>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                            Bắt đầu: {formatDateTime(record.currentTripStartTime)} · {formatDuration(record.currentTripStartTime)}
+                            Bắt đầu: {formatDateTime(record.currentTripStartTime)} · {formatDuration(record.currentTripStartTime, now)}
                         </Text>
                     </div>
                 ) : "--"
             ),
         },
         {
+            title: "Thời lượng dự kiến",
+            key: "plannedDuration",
+            render: (_, record) => {
+                if (!record.currentTripId) return "--"
+                const plannedMinutes = getPlannedMinutes(record)
+                if (plannedMinutes == null) return "--"
+                return formatMinutesLabel(plannedMinutes)
+            },
+        },
+        {
+            title: "Thời gian còn lại",
+            key: "remainingTime",
+            render: (_, record) => {
+                if (!record.currentTripId) return "--"
+                const plannedMinutes = getPlannedMinutes(record)
+                const remainingMinutes = getRemainingMinutes(record, now)
+                if (remainingMinutes == null) return "--"
+
+                const label = formatMinutesLabel(remainingMinutes)
+                const status = getRemainingStatus(remainingMinutes, plannedMinutes, record.remainingStatus)
+
+                if (status === "over") return <Tag color="red">Quá thời gian: {label}</Tag>
+                if (status === "near") return <Tag color="orange">Sắp xong: {label}</Tag>
+                return <Tag color="green">Còn lâu: {label}</Tag>
+            },
+        },
+        {
+            title: "Trạng thái chuyến",
+            key: "statusTime",
+            render: (_, record) => {
+                if (record.isMoving) {
+                    return `Bắt đầu: ${formatDateTime(record.currentTripStartTime)}`
+                }
+                return record.lastTripEndTime ? `Dừng: ${formatDateTime(record.lastTripEndTime)}` : "--"
+            },
+        },
+        {
             title: "Cảnh báo",
             key: "warning",
-            render: (_, record) => (
-                record.isOverDuration ? <Badge color="red" text="Quá thời gian" /> : "--"
-            ),
+            render: (_, record) => {
+                const remainingMinutes = getRemainingMinutes(record, now)
+                const isOver = remainingMinutes != null ? remainingMinutes < 0 : Boolean(record.isOverDuration)
+                return isOver ? <Badge color="red" text="Quá thời gian" /> : "--"
+            },
         },
         {
             title: "Thao tác",
@@ -181,8 +354,16 @@ export default function TripLogsPage() {
     ]
 
     const historyColumns = [
+        ...(!historyVehicleId ? [
+            {
+                title: "Biển số",
+                dataIndex: "vehicleLicensePlate",
+                key: "vehicleLicensePlate",
+                render: (_, record) => record.vehicleLicensePlate || (record.vehicleId ? `Xe #${record.vehicleId}` : "--"),
+            },
+        ] : []),
         {
-            title: "Mã trip",
+            title: "Mã chuyến",
             dataIndex: "tripId",
             key: "tripId",
         },
@@ -207,12 +388,12 @@ export default function TripLogsPage() {
         {
             title: "Lộ trình",
             key: "route",
-            render: (_, record) => `${record.origin || "--"} → ${record.destination || "--"}`,
+            render: (_, record) => `${record.origin || "--"} -> ${record.destination || "--"}`,
         },
         {
             title: "Số km",
             key: "mileage",
-            render: (_, record) => `${record.startMileage ?? "--"} → ${record.endMileage ?? "--"}`,
+            render: (_, record) => `${record.startMileage ?? "--"} -> ${record.endMileage ?? "--"}`,
         },
         {
             title: "Mục đích",
@@ -220,9 +401,26 @@ export default function TripLogsPage() {
             key: "purpose",
             render: (value) => value || "--",
         },
+        {
+            title: "Ghi chú",
+            key: "note",
+            render: (_, record) => {
+                const notes = []
+                if (record.isStopDifferent) {
+                    notes.push(`Dừng thực tế: ${record.actualStop || "--"} (${record.stopDeviationReason || "Không rõ lý do"})`)
+                }
+                if (record.overtimeReason) {
+                    const ext = record.extensionMinutes ? ` +${record.extensionMinutes} phút` : ""
+                    notes.push(`Quá thời gian: ${record.overtimeReason}${ext}`)
+                }
+                return notes.length ? notes.join(" · ") : "--"
+            },
+        },
     ]
 
-    const historyTrips = historyData?.trips || []
+    const hasHistorySelection = Boolean(historyVehicleId)
+    const historyInfo = historyVehicleInfo
+    const isHistoryEmpty = historyTrips.length === 0
     const vehiclesForSelect = allVehicles.length ? allVehicles : manageVehicles
 
     return (
@@ -272,12 +470,16 @@ export default function TripLogsPage() {
                                 <div className="history-toolbar">
                                     <Select
                                         showSearch
+                                        allowClear
                                         optionFilterProp="label"
-                                        placeholder="Chọn xe để xem lịch sử"
+                                        placeholder="Chọn xe để xem lịch sử (bỏ trống = tất cả)"
                                         value={historyVehicleId ?? undefined}
                                         onChange={(value) => {
+                                            if (!value) {
+                                                setHistoryVehicleId(null)
+                                                return
+                                            }
                                             setHistoryVehicleId(value)
-                                            loadTripHistory(value)
                                         }}
                                         options={vehiclesForSelect.map((vehicle) => ({
                                             label: vehicle.licensePlate || `Xe #${vehicle.vehicleId}`,
@@ -291,31 +493,33 @@ export default function TripLogsPage() {
                                     <div className="center-loading">
                                         <Spin />
                                     </div>
-                                ) : !historyData ? (
-                                    <Empty description="Chọn xe để xem lịch sử chuyến" />
+                                ) : isHistoryEmpty ? (
+                                    <Empty description={hasHistorySelection ? "Chưa có chuyến nào" : "Không có dữ liệu lịch sử"} />
                                 ) : (
                                     <div className="history-panel">
-                                        <div className="history-info">
-                                            <div className="history-info-header">Thông tin xe</div>
-                                            <div className="history-info-grid">
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Biển số</div>
-                                                    <div className="history-info-value">{historyData.licensePlate || `Xe #${historyData.vehicleId}`}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Trạng thái</div>
-                                                    <div className="history-info-value">{historyData.status || "--"}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Chi nhánh</div>
-                                                    <div className="history-info-value">{historyData.currentBranchName || "--"}</div>
-                                                </div>
-                                                <div className="history-info-row">
-                                                    <div className="history-info-label">Tài xế</div>
-                                                    <div className="history-info-value">{historyData.currentDriverName || "--"}</div>
+                                        {hasHistorySelection && historyInfo && (
+                                            <div className="history-info">
+                                                <div className="history-info-header">Thông tin xe</div>
+                                                <div className="history-info-grid">
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Biển số</div>
+                                                        <div className="history-info-value">{historyInfo.licensePlate || `Xe #${historyInfo.vehicleId}`}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Trạng thái</div>
+                                                        <div className="history-info-value">{historyInfo.status || "--"}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Chi nhánh</div>
+                                                        <div className="history-info-value">{historyInfo.currentBranchName || "--"}</div>
+                                                    </div>
+                                                    <div className="history-info-row">
+                                                        <div className="history-info-label">Tài xế</div>
+                                                        <div className="history-info-value">{historyInfo.currentDriverName || "--"}</div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         <div className="history-table">
                                             <Table
@@ -350,6 +554,7 @@ export default function TripLogsPage() {
                 tripId={selectedTrip}
                 isOverDuration={selectedOverDuration}
                 startMileage={selectedStartMileage}
+                remainingMinutes={selectedRemainingMinutes}
                 onCancel={() => setEndModalOpen(false)}
                 onSuccess={() => {
                     setEndModalOpen(false)
@@ -360,3 +565,5 @@ export default function TripLogsPage() {
         </div>
     )
 }
+
+export default TripLogsPage

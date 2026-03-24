@@ -11,6 +11,11 @@ export const getTripHistoryByVehicle = async (vehicleId) => {
   return res.data;
 };
 
+export const getAllTripHistory = async () => {
+  const res = await axiosClient.get(`/trips/history`);
+  return res.data;
+};
+
 export const getManageVehicles = async (tab) => {
   const res = await axiosClient.get(`/trips/manage/vehicles`, { params: { tab } });
   return res.data;
