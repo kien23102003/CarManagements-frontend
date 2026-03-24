@@ -88,10 +88,18 @@ export default function DistributionPage() {
       title: 'Xe ra', dataIndex: 'checkoutDate', key: 'checkout',
       render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
     },
+    ...(isExec ? [{
+      title: 'Người xác nhận ra', dataIndex: 'checkoutByName', key: 'checkoutBy',
+      render: (v) => v || '—',
+    }] : []),
     {
       title: 'Xe vào', dataIndex: 'checkinDate', key: 'checkin',
       render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
     },
+    ...(isExec ? [{
+      title: 'Người xác nhận vào', dataIndex: 'checkinByName', key: 'checkinBy',
+      render: (v) => v || '—',
+    }] : []),
     {
       title: 'Hành động', key: 'action', width: 200,
       render: (_, t) => (
