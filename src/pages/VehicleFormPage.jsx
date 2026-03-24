@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import vehicleApi from '../api/vehicleApi';
 import disposalProposalApi from '../api/disposalProposalApi';
+import accessoryApi from '../api/accessoryApi';
 import { useAuth } from '../services/AuthContext';
 import {
   Card,
@@ -19,6 +20,7 @@ import {
   Table,
   Tag,
   Space,
+  Alert,
 } from 'antd';
 import { ArrowLeftOutlined, LockOutlined, UploadOutlined, DeleteOutlined, PictureOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -53,6 +55,8 @@ export default function VehicleFormPage() {
   const [vehicleStatus, setVehicleStatus] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [accessoryRequirement, setAccessoryRequirement] = useState(null);
+  const [accessoryRequirementLoading, setAccessoryRequirementLoading] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -86,6 +90,7 @@ export default function VehicleFormPage() {
     if (isEdit) {
       loadVehicle();
       loadDisposalHistory();
+      loadAccessoryRequirement();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -113,12 +118,24 @@ export default function VehicleFormPage() {
           driversMap.set(v.currentDriverId, v.currentDriverName);
         }
       });
-      setDriverOptions([
-        { value: null, label: '-- Không có tài xế --' },
-        ...[...driversMap.entries()].map(([driverId, name]) => ({ value: driverId, label: name })),
-      ]);
+      setDriverOptions(
+        [...driversMap.entries()].map(([driverId, name]) => ({ value: driverId, label: name })),
+      );
     } catch {
       // ignore
+    }
+  };
+
+  const loadAccessoryRequirement = async () => {
+    if (!id) return;
+    setAccessoryRequirementLoading(true);
+    try {
+      const res = await accessoryApi.checkVehicleAccessoryRequirements(id);
+      setAccessoryRequirement(res?.data?.data || res?.data || null);
+    } catch {
+      setAccessoryRequirement(null);
+    } finally {
+      setAccessoryRequirementLoading(false);
     }
   };
 
@@ -406,6 +423,64 @@ export default function VehicleFormPage() {
               <p className="ant-upload-text">Kéo thả ảnh vào đây hoặc nhấn để chọn</p>
               <p className="ant-upload-hint">Hỗ trợ JPEG, PNG, GIF, WebP. Tối đa 5MB.</p>
             </Upload.Dragger>
+          )}
+        </Card>
+      )}
+
+      {isEdit && (
+        <Card
+          title="Định mức phụ kiện trên xe"
+          style={{ borderRadius: 12, marginTop: 16 }}
+          extra={(
+            <Space>
+              <Button onClick={() => navigate(`/vehicles/${id}/accessories`)}>Xem phụ kiện trên xe</Button>
+              <Button type="primary" onClick={() => navigate(`/accessories/issue?vehicleId=${id}`)}>
+                Cấp phát phụ kiện
+              </Button>
+            </Space>
+          )}
+          loading={accessoryRequirementLoading}
+        >
+          {accessoryRequirement?.items?.length ? (
+            <>
+              {accessoryRequirement.items.some((item) => item.missingQuantity > 0) && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message="Xe đang thiếu phụ kiện theo định mức"
+                  description="Vui lòng xử lý các phụ kiện còn thiếu trước khi vận hành hoặc bàn giao."
+                />
+              )}
+              <Table
+                rowKey="accessoryId"
+                pagination={false}
+                dataSource={accessoryRequirement.items}
+                columns={[
+                  { title: 'Phụ kiện', dataIndex: 'accessoryName', key: 'accessoryName' },
+                  { title: 'Mã', dataIndex: 'accessoryCode', key: 'accessoryCode', width: 120 },
+                  { title: 'Cần có', dataIndex: 'requiredQuantity', key: 'requiredQuantity', width: 100 },
+                  { title: 'Đang gắn', dataIndex: 'installedQuantity', key: 'installedQuantity', width: 100 },
+                  { title: 'Thiếu', dataIndex: 'missingQuantity', key: 'missingQuantity', width: 100 },
+                  {
+                    title: 'Bắt buộc',
+                    dataIndex: 'isMandatory',
+                    key: 'isMandatory',
+                    width: 100,
+                    render: (value) => <Tag color={value ? 'red' : 'default'}>{value ? 'Có' : 'Không'}</Tag>,
+                  },
+                  {
+                    title: 'Kết quả',
+                    dataIndex: 'isSatisfied',
+                    key: 'isSatisfied',
+                    width: 120,
+                    render: (value) => <Tag color={value ? 'green' : 'orange'}>{value ? 'Đủ' : 'Thiếu'}</Tag>,
+                  },
+                ]}
+              />
+            </>
+          ) : (
+            <div>Chưa có dữ liệu định mức phụ kiện cho xe này.</div>
           )}
         </Card>
       )}

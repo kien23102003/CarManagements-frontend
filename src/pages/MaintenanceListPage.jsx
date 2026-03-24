@@ -43,7 +43,7 @@ export default function MaintenanceListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const roles = user?.roles || [];
-  const isAccountant = roles.includes('Branch Asset Accountant');
+  const isManager = roles.includes('Executive Management') || roles.includes('Manager');
   const isOperator = roles.includes('Operator');
 
   useEffect(() => {
@@ -133,10 +133,26 @@ export default function MaintenanceListPage() {
 
   const columns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
+    {
+      title: 'Xe',
+      key: 'vehicle',
+      render: (_, m) => {
+        const plate = m.vehicleLicensePlate || 'Không có biển số';
+        const model = m.vehicleModelName || 'Không rõ loại xe';
+        return (
+          <div>
+            <div>{plate}</div>
+            <div style={{ color: '#8c8c8c', fontSize: 12 }}>{model}</div>
+          </div>
+        );
+      },
+    },
     { title: 'Loại', dataIndex: 'maintenanceType', key: 'type', render: (v) => LOAI_BT[v] || v },
     { title: 'Mô tả', dataIndex: 'description', key: 'desc', render: (v) => v || '—', ellipsis: true },
     { title: 'Chi phí ước tính', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
     { title: 'Ngày yêu cầu', dataIndex: 'requestDate', key: 'date', render: (v) => v || '—' },
+    { title: 'Ngày phê duyệt', dataIndex: 'approvedDate', key: 'approvedDate', render: (v) => v || '—' },
+    { title: 'Người phê duyệt', dataIndex: 'approverName', key: 'approverName', render: (v) => v || '—' },
     {
       title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 120,
       render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
@@ -153,7 +169,7 @@ export default function MaintenanceListPage() {
               <Button size="small" type="primary" icon={<PlayCircleOutlined />}>Thực hiện</Button>
             </Popconfirm>
           )}
-          {isAccountant && m.status === 'Pending' && (
+          {isManager && m.status === 'Pending' && (
             <>
               <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => openApprovalModal(m.id, 'Approved')}>Duyệt</Button>
               <Button size="small" danger icon={<CloseOutlined />} onClick={() => openApprovalModal(m.id, 'Rejected')}>Từ chối</Button>

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
+  Alert,
   Button,
   Card,
   DatePicker,
   Descriptions,
   Form,
   Input,
-  InputNumber,
   Modal,
   Space,
   Spin,
@@ -17,6 +17,7 @@ import {
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import disposalProposalApi from '../api/disposalProposalApi';
+import accessoryApi from '../api/accessoryApi';
 import { useAuth } from '../services/AuthContext';
 
 const STATUS_META = {
@@ -39,19 +40,38 @@ export default function DisposalProposalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [proposal, setProposal] = useState(null);
+  const [activeAccessories, setActiveAccessories] = useState([]);
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveForm] = Form.useForm();
   const [rejectForm] = Form.useForm();
 
+  const loadActiveAccessories = async (vehicleId) => {
+    if (!vehicleId) {
+      setActiveAccessories([]);
+      return;
+    }
+
+    try {
+      const res = await accessoryApi.getVehicleAccessories(vehicleId, true);
+      const items = res.data?.data || res.data || [];
+      setActiveAccessories(Array.isArray(items) ? items : []);
+    } catch {
+      setActiveAccessories([]);
+    }
+  };
+
   const loadDetail = async () => {
     setLoading(true);
     try {
       const res = await disposalProposalApi.getById(id);
-      setProposal(unwrapData(res));
+      const nextProposal = unwrapData(res);
+      setProposal(nextProposal);
+      await loadActiveAccessories(nextProposal?.vehicleId);
     } catch (err) {
       message.error(getErrorMessage(err, 'Không thể tải chi tiết đề xuất'));
       setProposal(null);
+      setActiveAccessories([]);
     } finally {
       setLoading(false);
     }
@@ -62,10 +82,14 @@ export default function DisposalProposalDetailPage() {
   }, [id]);
 
   const handleApprove = async () => {
+    if (activeAccessories.length > 0) {
+      message.error('Xe vẫn còn phụ kiện đang gắn. Vui lòng xử lý toàn bộ phụ kiện trước khi thanh lý.');
+      return;
+    }
+
     try {
       const values = await approveForm.validateFields();
       const payload = {
-        accountantId: values.accountantId || undefined,
         changeDate: values.changeDate ? dayjs(values.changeDate).format('YYYY-MM-DD') : undefined,
         notes: values.notes?.trim() || undefined,
       };
@@ -107,15 +131,12 @@ export default function DisposalProposalDetailPage() {
   }
 
   if (!proposal) {
-    return (
-      <Card>
-        Không tìm thấy đề xuất.
-      </Card>
-    );
+    return <Card>Không tìm thấy đề xuất.</Card>;
   }
 
   const statusMeta = STATUS_META[proposal.status] || { label: proposal.status || '-', color: 'default' };
   const canApproveReject = isExecutive && proposal.status === 'Pending';
+  const hasActiveAccessories = activeAccessories.length > 0;
 
   return (
     <div>
@@ -130,6 +151,16 @@ export default function DisposalProposalDetailPage() {
           </Tag>
         }
       >
+        {canApproveReject && hasActiveAccessories && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            message="Xe vẫn còn phụ kiện đang gắn"
+            description={`Cần xử lý ${activeAccessories.length} phụ kiện đang Installed trước khi duyệt thanh lý.`}
+          />
+        )}
+
         <Descriptions bordered column={1}>
           <Descriptions.Item label="Mã xe">{proposal.vehicleId || '-'}</Descriptions.Item>
           <Descriptions.Item label="Biển số xe">{proposal.vehicleLicensePlate || '-'}</Descriptions.Item>
@@ -147,9 +178,21 @@ export default function DisposalProposalDetailPage() {
           </Descriptions.Item>
         </Descriptions>
 
+        {hasActiveAccessories && (
+          <Card size="small" title="Phụ kiện đang gắn trên xe" style={{ marginTop: 16 }}>
+            {activeAccessories.map((item) => (
+              <div key={item.id}>
+                {item.accessoryCode || item.accessoryId || '-'} - {item.accessoryName || 'Phụ kiện'} x {item.quantity}
+              </div>
+            ))}
+          </Card>
+        )}
+
         {canApproveReject && (
           <Space style={{ marginTop: 16 }}>
-            <Button type="primary" onClick={() => setApproveOpen(true)}>Duyệt</Button>
+            <Button type="primary" onClick={() => setApproveOpen(true)} disabled={hasActiveAccessories}>
+              Duyệt
+            </Button>
             <Button danger onClick={() => setRejectOpen(true)}>Từ chối</Button>
           </Space>
         )}
@@ -159,15 +202,21 @@ export default function DisposalProposalDetailPage() {
         open={approveOpen}
         title="Duyệt đề xuất thanh lý"
         okText="Duyệt"
-        cancelText="Huỷ"
+        cancelText="Hủy"
         onCancel={() => setApproveOpen(false)}
         onOk={handleApprove}
-        okButtonProps={{ loading: submitting }}
+        okButtonProps={{ loading: submitting, disabled: hasActiveAccessories }}
       >
+        {hasActiveAccessories && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            message="Không thể duyệt thanh lý"
+            description="Xe vẫn còn phụ kiện đang gắn. Vui lòng thu hồi, trả, báo hỏng hoặc báo mất toàn bộ phụ kiện trước."
+          />
+        )}
         <Form form={approveForm} layout="vertical">
-          <Form.Item name="accountantId" label="Accountant ID (tuỳ chọn)">
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
           <Form.Item name="changeDate" label="Ngày ghi nhận biến động">
             <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
           </Form.Item>
@@ -182,7 +231,7 @@ export default function DisposalProposalDetailPage() {
         title="Từ chối đề xuất thanh lý"
         okText="Từ chối"
         okButtonProps={{ danger: true, loading: submitting }}
-        cancelText="Huỷ"
+        cancelText="Hủy"
         onCancel={() => setRejectOpen(false)}
         onOk={handleReject}
       >

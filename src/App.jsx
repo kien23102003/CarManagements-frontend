@@ -30,6 +30,12 @@ import AccessoryFormPage from './pages/AccessoryFormPage';
 import AccessoryIssuePage from './pages/AccessoryIssuePage';
 import VehicleAccessoriesPage from './pages/VehicleAccessoriesPage';
 import AccessoryTransactionsPage from './pages/AccessoryTransactionsPage';
+import BranchAccessoryStockPage from './pages/BranchAccessoryStockPage';
+import AccessoryPurchaseRequestListPage from './pages/AccessoryPurchaseRequestListPage';
+import AccessoryPurchaseRequestDetailPage from './pages/AccessoryPurchaseRequestDetailPage';
+import AccessoryGoodsReceiptListPage from './pages/AccessoryGoodsReceiptListPage';
+import AccessoryGoodsReceiptDetailPage from './pages/AccessoryGoodsReceiptDetailPage';
+import VehicleAccessoryRequirementsPage from './pages/VehicleAccessoryRequirementsPage';
 import DisposalProposalListPage from './pages/DisposalProposalListPage';
 import DisposalProposalDetailPage from './pages/DisposalProposalDetailPage';
 import DisposalProposalCreatePage from './pages/DisposalProposalCreatePage';
@@ -64,6 +70,12 @@ export default function App() {
             <Route path="accessories/new" element={<AccessoryFormPage />} />
             <Route path="accessories/:id" element={<AccessoryFormPage />} />
             <Route path="accessories/issue" element={<AccessoryIssuePage />} />
+            <Route path="branch-accessory-stock" element={<BranchAccessoryStockPage />} />
+            <Route path="accessory-purchase-requests" element={<AccessoryPurchaseRequestListPage />} />
+            <Route path="accessory-purchase-requests/:id" element={<AccessoryPurchaseRequestDetailPage />} />
+            <Route path="accessory-goods-receipts" element={<AccessoryGoodsReceiptListPage />} />
+            <Route path="accessory-goods-receipts/:id" element={<AccessoryGoodsReceiptDetailPage />} />
+            <Route path="vehicle-accessory-requirements" element={<VehicleAccessoryRequirementsPage />} />
             <Route path="accessory-transactions" element={<AccessoryTransactionsPage />} />
 
             <Route path="maintenance" element={<MaintenanceListPage />} />

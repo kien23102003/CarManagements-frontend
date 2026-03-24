@@ -1,56 +1,140 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, DatePicker, Form, Input, InputNumber, Select, message } from 'antd';
+import { App, Button, Card, DatePicker, Form, Input, InputNumber, Select } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import accessoryApi from '../api/accessoryApi';
+import assetApi from '../api/assetApi';
 import vehicleApi from '../api/vehicleApi';
 import { useAuth } from '../services/AuthContext';
-
-const canWrite = (roles) =>
-  roles.includes('Operator') || roles.includes('Executive Management');
+import {
+  branchIdValue,
+  branchOption,
+  canIssueAccessory,
+  canViewAccessoryAcrossBranches,
+  isDisposedVehicleStatus,
+  unwrapData,
+} from '../services/accessoryHelpers';
 
 export default function AccessoryIssuePage() {
   const [form] = Form.useForm();
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetVehicleId = searchParams.get('vehicleId');
   const { user } = useAuth();
   const roles = user?.roles || [];
-  const writable = useMemo(() => canWrite(roles), [roles]);
+  const writable = useMemo(() => canIssueAccessory(roles), [roles]);
+  const canViewAcrossBranches = useMemo(() => canViewAccessoryAcrossBranches(roles), [roles]);
 
+  const [branches, setBranches] = useState([]);
   const [vehicles, setVehicles] = useState([]);
-  const [accessories, setAccessories] = useState([]);
+  const [stockItems, setStockItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [branchLoading, setBranchLoading] = useState(false);
 
-  const loadDropdown = async () => {
-    try {
-      const [vehicleRes, accessoryRes] = await Promise.all([
-        vehicleApi.getList(),
-        accessoryApi.getAccessories({ page: 1, pageSize: 200 }),
-      ]);
-      setVehicles(vehicleRes.data?.data || vehicleRes.data || []);
-      setAccessories(accessoryRes.data?.data || accessoryRes.data || []);
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải dữ liệu danh mục');
+  const selectedBranchId = Form.useWatch('branchId', form);
+
+  useEffect(() => {
+    const loadDropdown = async () => {
+      try {
+        const [branchRes, vehicleRes] = await Promise.all([
+          assetApi.getBranches(),
+          vehicleApi.getList(),
+        ]);
+        const branchList = unwrapData(branchRes.data);
+        const vehicleList = unwrapData(vehicleRes.data).filter((vehicle) => !isDisposedVehicleStatus(vehicle.status));
+        setBranches(branchList);
+        setVehicles(vehicleList);
+
+        const defaultBranchId = user?.branchId || branchIdValue(branchList[0]);
+        form.setFieldsValue({
+          branchId: defaultBranchId,
+          vehicleId: presetVehicleId ? Number(presetVehicleId) : undefined,
+          quantity: 1,
+          installDate: dayjs(),
+        });
+      } catch (error) {
+        message.error(error.response?.data?.message || 'Không thể tải dữ liệu danh mục');
+      }
+    };
+
+    loadDropdown();
+  }, [form, message, presetVehicleId, user?.branchId]);
+
+  useEffect(() => {
+    if (!selectedBranchId) {
+      setStockItems([]);
+      return;
     }
+
+    const loadBranchStock = async () => {
+      setBranchLoading(true);
+      try {
+        const { data } = await accessoryApi.getBranchStocks({ branchId: selectedBranchId, page: 1, pageSize: 500 });
+        setStockItems(unwrapData(data));
+      } catch (error) {
+        message.error(error.response?.data?.message || 'Không thể tải tồn kho chi nhánh');
+        setStockItems([]);
+      } finally {
+        setBranchLoading(false);
+      }
+    };
+
+    loadBranchStock();
+  }, [message, selectedBranchId]);
+
+  const branchOptions = branches.map(branchOption);
+
+  const vehicleOptions = vehicles
+    .filter((vehicle) => !selectedBranchId || vehicle.currentBranchId === selectedBranchId)
+    .map((vehicle) => ({
+      value: vehicle.id,
+      label: `${vehicle.licensePlate || `Xe #${vehicle.id}`} - ${vehicle.modelName || 'Chưa rõ loại xe'}`,
+    }));
+
+  const accessoryOptions = stockItems.map((item) => ({
+    value: item.accessoryId,
+    label: `${item.accessoryCode || ''} ${item.accessoryName || ''}`.trim(),
+    stock: item.quantityInStock,
+  }));
+
+  const handleBranchChange = () => {
+    form.setFieldsValue({ accessoryId: undefined, vehicleId: presetVehicleId ? Number(presetVehicleId) : undefined });
   };
 
-  useEffect(() => {
-    loadDropdown();
-  }, []);
-
-  useEffect(() => {
-    if (presetVehicleId) {
-      form.setFieldsValue({ vehicleId: Number(presetVehicleId) });
-    }
-  }, [presetVehicleId]);
-
   const handleSubmit = async (values) => {
-    if (!writable) return;
+    if (!writable) {
+      return;
+    }
+
+    const selectedVehicle = vehicles.find((vehicle) => vehicle.id === values.vehicleId);
+    const selectedAccessory = stockItems.find((item) => item.accessoryId === values.accessoryId);
+
+    if (!selectedVehicle) {
+      message.error('Không tìm thấy xe được chọn');
+      return;
+    }
+
+    if (selectedVehicle.currentBranchId !== values.branchId) {
+      message.error('Xe không thuộc chi nhánh đã chọn');
+      return;
+    }
+
+    if (!selectedAccessory) {
+      message.error('Phụ kiện không tồn tại trong kho chi nhánh');
+      return;
+    }
+
+    if (values.quantity > selectedAccessory.quantityInStock) {
+      message.error(`Số lượng vượt tồn kho chi nhánh. Còn lại: ${selectedAccessory.quantityInStock}`);
+      return;
+    }
+
     setLoading(true);
     try {
       await accessoryApi.issueVehicleAccessory({
+        branchId: values.branchId,
         vehicleId: values.vehicleId,
         accessoryId: values.accessoryId,
         quantity: values.quantity,
@@ -58,9 +142,9 @@ export default function AccessoryIssuePage() {
         notes: values.notes,
       });
       message.success('Cấp phát phụ kiện thành công');
-      navigate(values.vehicleId ? `/vehicles/${values.vehicleId}/accessories` : '/accessories');
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Cấp phát phụ kiện thất bại');
+      navigate(`/vehicles/${values.vehicleId}/accessories`);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Cấp phát phụ kiện thất bại');
     } finally {
       setLoading(false);
     }
@@ -71,37 +155,49 @@ export default function AccessoryIssuePage() {
   }
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div style={{ maxWidth: 820 }}>
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/accessories')} style={{ marginBottom: 12 }}>
         Quay lại
       </Button>
       <h2 style={{ marginTop: 0 }}>Cấp phát phụ kiện cho xe</h2>
 
       <Card>
-        <Form
-          layout="vertical"
-          form={form}
-          onFinish={handleSubmit}
-          initialValues={{ quantity: 1, installDate: dayjs() }}
-        >
-          <Form.Item name="vehicleId" label="Xe" rules={[{ required: true, message: 'Vui lòng chọn xe' }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              options={vehicles.map((v) => ({
-                value: v.id,
-                label: `${v.licensePlate || 'Không có BKS'} - ${v.modelName || ''}`.trim(),
-              }))}
-            />
+        <Form layout="vertical" form={form} onFinish={handleSubmit}>
+          {canViewAcrossBranches && (
+            <Form.Item
+              name="branchId"
+              label="Chi nhánh"
+              rules={[{ required: true, message: 'Vui lòng chọn chi nhánh' }]}
+            >
+              <Select
+                options={branchOptions}
+                onChange={handleBranchChange}
+                disabled={Boolean(user?.branchId) && !canViewAcrossBranches}
+                loading={branchLoading}
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item
+            name="vehicleId"
+            label="Xe"
+            rules={[{ required: true, message: 'Vui lòng chọn xe' }]}
+          >
+            <Select showSearch optionFilterProp="label" options={vehicleOptions} />
           </Form.Item>
 
-          <Form.Item name="accessoryId" label="Phụ kiện" rules={[{ required: true, message: 'Vui lòng chọn phụ kiện' }]}>
+          <Form.Item
+            name="accessoryId"
+            label="Phụ kiện"
+            rules={[{ required: true, message: 'Vui lòng chọn phụ kiện' }]}
+          >
             <Select
               showSearch
               optionFilterProp="label"
-              options={accessories.map((a) => ({
-                value: a.id,
-                label: `${a.code || ''} - ${a.name || ''} (tồn: ${a.quantityInStock ?? 0})`.trim(),
+              loading={branchLoading}
+              options={accessoryOptions.map((item) => ({
+                value: item.value,
+                label: `${item.label} (tồn: ${item.stock})`,
               }))}
             />
           </Form.Item>

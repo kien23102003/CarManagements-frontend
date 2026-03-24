@@ -223,17 +223,17 @@ export default function VehicleListPage() {
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="Chi nhánh" value={stats.branches} valueStyle={{ color: '#6366f1' }} />
+            <Statistic title="Chi nhánh" value={stats.branches} styles={{ content: { color: '#6366f1' } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="Hoạt động" value={stats.active} valueStyle={{ color: '#22c55e' }} />
+            <Statistic title="Hoạt động" value={stats.active} styles={{ content: { color: '#22c55e' } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="Đang bảo trì" value={stats.maintenance} valueStyle={{ color: '#f59e0b' }} />
+            <Statistic title="Đang bảo trì" value={stats.maintenance} styles={{ content: { color: '#f59e0b' } }} />
           </Card>
         </Col>
       </Row>
