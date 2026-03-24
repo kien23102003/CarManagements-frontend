@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react"
-import { Badge, Button, Descriptions, Empty, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd"
+import { Badge, Button, Empty, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd"
 import toast from "react-hot-toast"
 import dayjs from "dayjs"
 import utc from "dayjs/plugin/utc"
@@ -15,26 +15,109 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 const VN_TZ = "Asia/Ho_Chi_Minh"
+const NEAR_THRESHOLD_MINUTES = 30
+
+const parseTripTime = (value) => {
+    if (!value) return null
+    const hasTimezone = /[zZ]|[+-]\d{2}:\d{2}$/.test(String(value))
+    const parsed = hasTimezone ? dayjs.utc(value) : dayjs.tz(value, VN_TZ)
+    return parsed.isValid() ? parsed : null
+}
 
 const formatDateTime = (value) => {
-    if (!value) return "--"
-    const parsed = dayjs.utc(value)
-    if (!parsed.isValid()) return "--"
+    const parsed = parseTripTime(value)
+    if (!parsed) return "--"
     return parsed.tz(VN_TZ).format("HH:mm DD/MM/YYYY")
 }
 
-const formatDuration = (start) => {
+const formatDuration = (start, now) => {
     if (!start) return "--"
-    const startTime = dayjs.utc(start)
-    if (!startTime.isValid()) return "--"
-    const now = dayjs().tz(VN_TZ)
-    const diffMinutes = now.diff(startTime.tz(VN_TZ), "minute")
-    if (diffMinutes <= 0) return "0 phut"
+    const startTime = parseTripTime(start)
+    if (!startTime) return "--"
+    const reference = now || dayjs().tz(VN_TZ)
+    const diffMinutes = reference.diff(startTime.tz(VN_TZ), "minute")
+    if (diffMinutes <= 0) return "0 phút"
     const hours = Math.floor(diffMinutes / 60)
     const minutes = diffMinutes % 60
-    if (hours === 0) return `${minutes} phut`
-    return `${hours} gio ${minutes} phut`
+    if (hours === 0) return `${minutes} phút`
+    return `${hours} giờ ${minutes} phút`
 }
+
+const formatMinutesLabel = (minutes) => {
+    const abs = Math.abs(minutes)
+    const hours = Math.floor(abs / 60)
+    const mins = abs % 60
+    if (hours > 0) return `${hours} giờ ${mins} phút`
+    return `${mins} phút`
+}
+
+const toNumber = (value) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+}
+
+const getPlannedMinutes = (record) => {
+    if (!record) return null
+    const days = toNumber(
+        record.currentTripPlannedDurationDays ??
+        record.plannedDurationDays ??
+        record.plannedDays
+    )
+    const hours = toNumber(
+        record.currentTripPlannedDurationHours ??
+        record.plannedDurationHours ??
+        record.plannedHours
+    )
+    const minutes = toNumber(
+        record.currentTripPlannedDurationMinutes ??
+        record.plannedDurationMinutes ??
+        record.plannedMinutes
+    )
+
+    if (days != null || hours != null || minutes != null) {
+        return (days || 0) * 24 * 60 + (hours || 0) * 60 + (minutes || 0)
+    }
+
+    const direct = toNumber(
+        record.currentTripPlannedDuration ??
+        record.plannedDuration ??
+        record.currentTripPlannedMinutes ??
+        record.plannedMinutes
+    )
+    if (direct != null) return direct
+
+    return null
+}
+
+const getElapsedMinutes = (start, now) => {
+    if (!start) return null
+    const startTime = parseTripTime(start)
+    if (!startTime) return null
+    const reference = now || dayjs().tz(VN_TZ)
+    const diff = reference.diff(startTime.tz(VN_TZ), "minute")
+    return Math.max(0, diff)
+}
+
+const getRemainingMinutes = (record, now) => {
+    if (!record?.currentTripId) return null
+    const planned = getPlannedMinutes(record)
+    const elapsed = getElapsedMinutes(record.currentTripStartTime, now)
+    if (planned == null || elapsed == null) return record?.remainingMinutes ?? null
+    return planned - elapsed
+}
+
+const getRemainingStatus = (remainingMinutes, plannedMinutes, fallbackStatus) => {
+    if (remainingMinutes == null) return fallbackStatus || null
+    if (remainingMinutes < 0) return "over"
+
+    const threshold = plannedMinutes != null
+        ? Math.min(NEAR_THRESHOLD_MINUTES, Math.ceil(plannedMinutes * 0.2))
+        : NEAR_THRESHOLD_MINUTES
+
+    if (remainingMinutes <= threshold) return "near"
+    return "ok"
+}
+
 function TripLogsPage() {
     const [activeMainTab, setActiveMainTab] = useState("manage")
     const [manageTab, setManageTab] = useState("all")
@@ -54,6 +137,16 @@ function TripLogsPage() {
     const [selectedStartMileage, setSelectedStartMileage] = useState(null)
     const [selectedRemainingMinutes, setSelectedRemainingMinutes] = useState(null)
 
+    const [now, setNow] = useState(() => dayjs().tz(VN_TZ))
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNow(dayjs().tz(VN_TZ))
+        }, 30000)
+
+        return () => clearInterval(timer)
+    }, [])
+
     const loadManageVehicles = async (tabKey) => {
         setManageLoading(true)
         try {
@@ -65,7 +158,7 @@ function TripLogsPage() {
             }
         } catch (error) {
             console.error("Failed to load manage vehicles", error)
-            toast.error("Không the tải danh sách vận hành.")
+            toast.error("Không thể tải danh sách vận hành.")
             setManageVehicles([])
         } finally {
             setManageLoading(false)
@@ -81,7 +174,7 @@ function TripLogsPage() {
             setHistoryData(data || null)
         } catch (error) {
             console.error("Failed to load trip history", error)
-            toast.error("Không the tải lich sử chuyến.")
+            toast.error("Không thể tải lịch sử chuyến.")
             setHistoryData(null)
         } finally {
             setHistoryLoading(false)
@@ -106,16 +199,17 @@ function TripLogsPage() {
     }
 
     const handleEndTrip = (vehicle) => {
+        const remainingMinutes = getRemainingMinutes(vehicle, now)
         setSelectedTrip(vehicle?.currentTripId)
-        setSelectedOverDuration(Boolean(vehicle?.isOverDuration))
+        setSelectedOverDuration(remainingMinutes != null ? remainingMinutes < 0 : Boolean(vehicle?.isOverDuration))
         setSelectedStartMileage(vehicle?.currentTripStartMileage ?? null)
-        setSelectedRemainingMinutes(vehicle?.remainingMinutes ?? null)
+        setSelectedRemainingMinutes(remainingMinutes)
         setEndModalOpen(true)
     }
 
     const manageColumns = [
         {
-            title: "Bien so",
+            title: "Biển số",
             dataIndex: "licensePlate",
             key: "licensePlate",
             render: (_, record) => (
@@ -152,41 +246,52 @@ function TripLogsPage() {
             render: (value) => value || "--",
         },
         {
-            title: "Chuyen dang chay",
+            title: "Chuyến đang chạy",
             key: "currentTrip",
             render: (_, record) => (
                 record.currentTripId ? (
                     <div>
                         <div>{record.currentTripOrigin || "--"} -{">"} {record.currentTripDestination || "--"}</div>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                            Bat dau: {formatDateTime(record.currentTripStartTime)} · {formatDuration(record.currentTripStartTime)}
+                            Bắt đầu: {formatDateTime(record.currentTripStartTime)} · {formatDuration(record.currentTripStartTime, now)}
                         </Text>
                     </div>
                 ) : "--"
             ),
         },
         {
+            title: "Thời lượng dự kiến",
+            key: "plannedDuration",
+            render: (_, record) => {
+                if (!record.currentTripId) return "--"
+                const plannedMinutes = getPlannedMinutes(record)
+                if (plannedMinutes == null) return "--"
+                return formatMinutesLabel(plannedMinutes)
+            },
+        },
+        {
             title: "Thời gian còn lại",
             key: "remainingTime",
             render: (_, record) => {
-                if (!record.currentTripId || record.remainingMinutes == null) return "--"
-                const minutes = record.remainingMinutes
-                const abs = Math.abs(minutes)
-                const hours = Math.floor(abs / 60)
-                const mins = abs % 60
-                const label = hours > 0 ? `${hours} giờ ${mins} phút` : `${mins} phút`
-                const status = record.remainingStatus
+                if (!record.currentTripId) return "--"
+                const plannedMinutes = getPlannedMinutes(record)
+                const remainingMinutes = getRemainingMinutes(record, now)
+                if (remainingMinutes == null) return "--"
+
+                const label = formatMinutesLabel(remainingMinutes)
+                const status = getRemainingStatus(remainingMinutes, plannedMinutes, record.remainingStatus)
+
                 if (status === "over") return <Tag color="red">Quá thời gian: {label}</Tag>
                 if (status === "near") return <Tag color="orange">Sắp xong: {label}</Tag>
                 return <Tag color="green">Còn lâu: {label}</Tag>
             },
         },
         {
-            title: "Chuyen trạng thái",
+            title: "Trạng thái chuyến",
             key: "statusTime",
             render: (_, record) => {
                 if (record.isMoving) {
-                    return `Bat dau: ${formatDateTime(record.currentTripStartTime)}`
+                    return `Bắt đầu: ${formatDateTime(record.currentTripStartTime)}`
                 }
                 return record.lastTripEndTime ? `Dừng: ${formatDateTime(record.lastTripEndTime)}` : "--"
             },
@@ -194,9 +299,11 @@ function TripLogsPage() {
         {
             title: "Cảnh báo",
             key: "warning",
-            render: (_, record) => (
-                record.isOverDuration ? <Badge color="red" text="Quá thời gian" /> : "--"
-            ),
+            render: (_, record) => {
+                const remainingMinutes = getRemainingMinutes(record, now)
+                const isOver = remainingMinutes != null ? remainingMinutes < 0 : Boolean(record.isOverDuration)
+                return isOver ? <Badge color="red" text="Quá thời gian" /> : "--"
+            },
         },
         {
             title: "Thao tác",
@@ -205,7 +312,7 @@ function TripLogsPage() {
                 <Space>
                     {manageTab === "ready" && (
                         <Button type="primary" onClick={() => handleStartTrip(record)}>
-                            Bat dau chuyến
+                            Bắt đầu chuyến
                         </Button>
                     )}
                     {manageTab === "moving" && (
@@ -220,7 +327,7 @@ function TripLogsPage() {
 
     const historyColumns = [
         {
-            title: "Mã trip",
+            title: "Mã chuyến",
             dataIndex: "tripId",
             key: "tripId",
         },
@@ -231,7 +338,7 @@ function TripLogsPage() {
             render: (value) => value || "--",
         },
         {
-            title: "Bat dau",
+            title: "Bắt đầu",
             dataIndex: "startTime",
             key: "startTime",
             render: (value) => formatDateTime(value),
@@ -243,17 +350,17 @@ function TripLogsPage() {
             render: (value) => value ? formatDateTime(value) : "Đang chạy",
         },
         {
-            title: "LT trình",
+            title: "Lộ trình",
             key: "route",
             render: (_, record) => `${record.origin || "--"} -> ${record.destination || "--"}`,
         },
         {
-            title: "S' km",
+            title: "Số km",
             key: "mileage",
             render: (_, record) => `${record.startMileage ?? "--"} -> ${record.endMileage ?? "--"}`,
         },
         {
-            title: "Muc dich",
+            title: "Mục đích",
             dataIndex: "purpose",
             key: "purpose",
             render: (value) => value || "--",
@@ -282,8 +389,8 @@ function TripLogsPage() {
         <div className="trip-module">
             <div className="trip-header">
                 <div>
-                    <Title level={3}>Quản lý vận hành chuyen di</Title>
-                    <Text type="secondary">Theo dõi trạng thái xe, vận hành và lich sử chuyen di.</Text>
+                    <Title level={3}>Quản lý vận hành chuyến đi</Title>
+                    <Text type="secondary">Theo dõi trạng thái xe, vận hành và lịch sử chuyến đi.</Text>
                 </div>
             </div>
 
@@ -302,7 +409,7 @@ function TripLogsPage() {
                                     items={[
                                         { key: "all", label: "Tất cả" },
                                         { key: "ready", label: "Sẵn sàng" },
-                                        { key: "moving", label: "Dang di chuyen" },
+                                        { key: "moving", label: "Đang di chuyển" },
                                     ]}
                                 />
 
@@ -311,7 +418,7 @@ function TripLogsPage() {
                                     columns={manageColumns}
                                     dataSource={manageVehicles}
                                     loading={manageLoading}
-                                    locale={{ emptyText: manageLoading ? <Spin /> : <Empty description="Không có du lieu" /> }}
+                                    locale={{ emptyText: manageLoading ? <Spin /> : <Empty description="Không có dữ liệu" /> }}
                                     pagination={{ pageSize: 10 }}
                                 />
                             </div>
@@ -319,14 +426,14 @@ function TripLogsPage() {
                     },
                     {
                         key: "history",
-                        label: "Lich sử chuyến",
+                        label: "Lịch sử chuyến",
                         children: (
                             <div className="trip-card">
                                 <div className="history-toolbar">
                                     <Select
                                         showSearch
                                         optionFilterProp="label"
-                                        placeholder="Chọn xe 'f xem lich sử"
+                                        placeholder="Chọn xe để xem lịch sử"
                                         value={historyVehicleId ?? undefined}
                                         onChange={(value) => {
                                             setHistoryVehicleId(value)
@@ -345,14 +452,14 @@ function TripLogsPage() {
                                         <Spin />
                                     </div>
                                 ) : !historyData ? (
-                                    <Empty description="Chọn xe 'f xem lich sử chuyến" />
+                                    <Empty description="Chọn xe để xem lịch sử chuyến" />
                                 ) : (
                                     <div className="history-panel">
                                         <div className="history-info">
                                             <div className="history-info-header">Thông tin xe</div>
                                             <div className="history-info-grid">
                                                 <div className="history-info-row">
-                                                    <div className="history-info-label">Bien so</div>
+                                                    <div className="history-info-label">Biển số</div>
                                                     <div className="history-info-value">{historyData.licensePlate || `Xe #${historyData.vehicleId}`}</div>
                                                 </div>
                                                 <div className="history-info-row">
@@ -394,7 +501,7 @@ function TripLogsPage() {
                 onSuccess={() => {
                     setStartModalOpen(false)
                     loadManageVehicles(manageTab)
-                    toast.success("Bat dau chuyến thành công.")
+                    toast.success("Bắt đầu chuyến thành công.")
                 }}
             />
 
@@ -416,6 +523,3 @@ function TripLogsPage() {
 }
 
 export default TripLogsPage
-
-
-

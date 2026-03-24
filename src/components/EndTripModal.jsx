@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { Alert, Checkbox, Form, Input, InputNumber, Modal } from "antd"
 import { endTrip } from "../services/tripLogService"
 

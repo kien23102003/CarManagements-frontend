@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+﻿import { useEffect, useMemo, useState } from "react"
 import { Form, Input, InputNumber, Modal, Select, Typography } from "antd"
 import { getTripHistoryByVehicle, startTrip } from "../services/tripLogService"
 
@@ -207,7 +207,7 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                 </Form.Item>
 
                 <Form.Item label="Mục đích" name="purpose">
-                    <Input placeholder="Tuỳ chọn" />
+                    <Input placeholder="Tùy chọn" />
                 </Form.Item>
 
                 <Form.Item
