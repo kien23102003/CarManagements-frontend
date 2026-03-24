@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -16,6 +16,7 @@ import {
   MenuUnfoldOutlined,
   SafetyCertificateOutlined,
   AppstoreOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
@@ -33,6 +34,16 @@ const NAV_ITEMS = [
       { key: '/vehicles/asset-create', label: 'Đăng ký tài sản', roles: ['Branch Asset Accountant'] },
       { key: '/vehicles/assignment', label: 'Phân công xe', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'] },
       { key: '/disposal-proposals', label: 'Đề xuất thanh lý', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'] },
+    ],
+  },
+  {
+    key: 'drivers-menu',
+    icon: <TeamOutlined />,
+    label: 'Tài xế',
+    roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'],
+    children: [
+      { key: '/drivers', label: 'Danh sách tài xế' },
+      { key: '/driver-transfers', label: 'Điều chuyển tài xế', roles: ['Operator'] },
     ],
   },
   {
