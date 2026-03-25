@@ -7,10 +7,10 @@ import { PlusOutlined, LoginOutlined, LogoutOutlined, StopOutlined, BankOutlined
 import dayjs from 'dayjs';
 
 const TRANG_THAI = {
-  Pending: 'Chá» thá»±c hiá»‡n',
-  InTransit: 'Äang di chuyá»ƒn',
-  Completed: 'HoÃ n thÃ nh',
-  Cancelled: 'ÄÃ£ huá»·',
+  Pending: 'Chờ thực hiện',
+  InTransit: 'Đang di chuyển',
+  Completed: 'Hoàn thành',
+  Cancelled: 'Đã huỷ',
 };
 
 const TRANG_THAI_MAU = {
@@ -47,7 +47,7 @@ export default function DistributionPage() {
         setTransfers(data.data || data || []);
       }
     } catch {
-      message.error('KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u');
+      message.error('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -60,35 +60,35 @@ export default function DistributionPage() {
   const handleStatus = async (id, status) => {
     try {
       await distributionApi.updateTransferStatus(id, { status });
-      message.success('Cáº­p nháº­t thÃ nh cÃ´ng');
+      message.success('Cập nhật thành công');
       loadData();
     } catch (err) {
-      message.error(err.response?.data?.message || 'CÃ³ lá»—i');
+      message.error(err.response?.data?.message || 'Có lỗi');
     }
   };
 
   const transferColumns = [
-    { title: 'MÃ£', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
-    { title: 'Biá»ƒn sá»‘', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || 'â€”'}</strong> },
-    { title: 'Tá»« chi nhÃ¡nh', dataIndex: 'fromBranchName', key: 'from', render: (v) => v || 'â€”' },
-    { title: 'Äáº¿n chi nhÃ¡nh', dataIndex: 'toBranchName', key: 'to', render: (v) => v || 'â€”' },
+    { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
+    { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '—'}</strong> },
+    { title: 'Từ chi nhánh', dataIndex: 'fromBranchName', key: 'from', render: (v) => v || '—' },
+    { title: 'Đến chi nhánh', dataIndex: 'toBranchName', key: 'to', render: (v) => v || '—' },
     {
-      title: 'NgÃ y káº¿ hoáº¡ch',
+      title: 'Ngày kế hoạch',
       dataIndex: 'planDate',
       key: 'date',
       render: (v, record) => {
-        if (!v) return 'â€”';
+        if (!v) return '—';
         const formatted = dayjs(v).format('DD/MM/YYYY');
         if (record.status !== 'Pending') return formatted;
         const today = dayjs().startOf('day');
         const planDay = dayjs(v).startOf('day');
-        if (planDay.isBefore(today)) return <>{formatted} <Tag color="red">QuÃ¡ háº¡n</Tag></>;
-        if (planDay.isSame(today)) return <>{formatted} <Tag color="orange">HÃ´m nay</Tag></>;
+        if (planDay.isBefore(today)) return <>{formatted} <Tag color="red">Quá hạn</Tag></>;
+        if (planDay.isSame(today)) return <>{formatted} <Tag color="orange">Hôm nay</Tag></>;
         return formatted;
       },
     },
     {
-      title: 'Tráº¡ng thÃ¡i',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
@@ -97,41 +97,41 @@ export default function DistributionPage() {
       title: 'Xe ra',
       dataIndex: 'checkoutDate',
       key: 'checkout',
-      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : 'â€”',
+      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
     },
     ...(isExec ? [{
       title: 'Người xác nhận ra', dataIndex: 'checkoutByName', key: 'checkoutBy',
       render: (v) => v || '—',
     }] : []),
     {
-      title: 'Xe vÃ o',
+      title: 'Xe vào',
       dataIndex: 'checkinDate',
       key: 'checkin',
-      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : 'â€”',
+      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
     },
     ...(isExec ? [{
       title: 'Người xác nhận vào', dataIndex: 'checkinByName', key: 'checkinBy',
       render: (v) => v || '—',
     }] : []),
     {
-      title: 'HÃ nh Ä‘á»™ng',
+      title: 'Hành động',
       key: 'action',
       width: 200,
       render: (_, t) => (
         <Space>
           {isOperator && t.status === 'Pending' && t.fromBranchId === userBranchId && (
-            <Popconfirm title="XÃ¡c nháº­n xe rá»i chi nhÃ¡nh?" onConfirm={() => handleStatus(t.id, 'Checkout')}>
+            <Popconfirm title="Xác nhận xe rời chi nhánh?" onConfirm={() => handleStatus(t.id, 'Checkout')}>
               <Button size="small" type="primary" icon={<LogoutOutlined />}>Xe ra</Button>
             </Popconfirm>
           )}
           {isOperator && t.status === 'InTransit' && t.toBranchId === userBranchId && (
-            <Popconfirm title="XÃ¡c nháº­n xe Ä‘Ã£ Ä‘áº¿n?" onConfirm={() => handleStatus(t.id, 'Checkin')}>
-              <Button size="small" type="primary" style={{ background: '#22c55e', borderColor: '#22c55e' }} icon={<LoginOutlined />}>Xe vÃ o</Button>
+            <Popconfirm title="Xác nhận xe đã đến?" onConfirm={() => handleStatus(t.id, 'Checkin')}>
+              <Button size="small" type="primary" style={{ background: '#22c55e', borderColor: '#22c55e' }} icon={<LoginOutlined />}>Xe vào</Button>
             </Popconfirm>
           )}
           {isExec && (t.status === 'Pending' || t.status === 'InTransit') && (
-            <Popconfirm title="Huá»· yÃªu cáº§u Ä‘iá»u chuyá»ƒn?" onConfirm={() => handleStatus(t.id, 'Cancelled')}>
-              <Button size="small" danger icon={<StopOutlined />}>Huá»·</Button>
+            <Popconfirm title="Huỷ yêu cầu điều chuyển?" onConfirm={() => handleStatus(t.id, 'Cancelled')}>
+              <Button size="small" danger icon={<StopOutlined />}>Huỷ</Button>
             </Popconfirm>
           )}
         </Space>
@@ -142,20 +142,20 @@ export default function DistributionPage() {
   const tabItems = [
     {
       key: 'stock',
-      label: 'Theo chi nhÃ¡nh',
+      label: 'Theo chi nhánh',
       children: loading ? <Card loading /> : stock.length === 0 ? (
-        <Card><div style={{ textAlign: 'center', padding: 40, color: '#8c8c8c' }}>ChÆ°a cÃ³ dá»¯ liá»‡u tá»“n kho</div></Card>
+        <Card><div style={{ textAlign: 'center', padding: 40, color: '#8c8c8c' }}>Chưa có dữ liệu tồn kho</div></Card>
       ) : (
         <Row gutter={[16, 16]}>
           {stock.map((b) => (
             <Col xs={24} sm={12} lg={8} key={b.branchId}>
               <Card style={{ borderRadius: 12 }}>
                 <Space orientation="vertical" style={{ width: '100%' }}>
-                  <Space><BankOutlined style={{ color: '#3b82f6', fontSize: 18 }} /><strong>{b.branchName || `Chi nhÃ¡nh #${b.branchId}`}</strong></Space>
+                  <Space><BankOutlined style={{ color: '#3b82f6', fontSize: 18 }} /><strong>{b.branchName || `Chi nhánh #${b.branchId}`}</strong></Space>
                   <Row gutter={16}>
-                    <Col span={8}><Statistic title="Tá»•ng" value={b.totalVehicles} /></Col>
-                    <Col span={8}><Statistic title="Hoáº¡t Ä‘á»™ng" value={b.activeVehicles} styles={{ content: { color: '#22c55e' } }} /></Col>
-                    <Col span={8}><Statistic title="Äang chuyá»ƒn" value={b.inTransferVehicles} styles={{ content: { color: '#06b6d4' } }} /></Col>
+                    <Col span={8}><Statistic title="Tổng" value={b.totalVehicles} /></Col>
+                    <Col span={8}><Statistic title="Hoạt động" value={b.activeVehicles} styles={{ content: { color: '#22c55e' } }} /></Col>
+                    <Col span={8}><Statistic title="Đang chuyển" value={b.inTransferVehicles} styles={{ content: { color: '#06b6d4' } }} /></Col>
                   </Row>
                 </Space>
               </Card>
@@ -166,12 +166,12 @@ export default function DistributionPage() {
     },
     {
       key: 'transfers',
-      label: 'YÃªu cáº§u Ä‘iá»u chuyá»ƒn',
+      label: 'Yêu cầu điều chuyển',
       children: (
         <div>
           <Space style={{ marginBottom: 16 }}>
             <Select
-              placeholder="Táº¥t cáº£ tráº¡ng thÃ¡i"
+              placeholder="Tất cả trạng thái"
               allowClear
               style={{ width: 170 }}
               value={statusFilter}
@@ -195,8 +195,8 @@ export default function DistributionPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ margin: 0 }}>Äiá»u chuyá»ƒn xe</h2>
-        {isExec && <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/distribution/new')}>Táº¡o yÃªu cáº§u</Button>}
+        <h2 style={{ margin: 0 }}>Điều chuyển xe</h2>
+        {isExec && <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/distribution/new')}>Tạo yêu cầu</Button>}
       </div>
       <Tabs activeKey={tab} onChange={setTab} items={tabItems} />
     </div>

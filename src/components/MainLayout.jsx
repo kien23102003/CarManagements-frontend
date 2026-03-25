@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -72,7 +72,7 @@ const NAV_ITEMS = [
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
   { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },
   { key: '/proposals', icon: <CarOutlined />, label: 'Đề xuất xe', roles: null },
-  { key: '/vehicle-stats', icon: <DashboardOutlined />, label: 'Thống kê chi phí xe', roles: null },
+  { key: '/vehicle-stats', icon: <DashboardOutlined />, label: 'Thống kê khấu hao xe', roles: null },
 ];
 
 export default function MainLayout() {

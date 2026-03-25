@@ -120,7 +120,7 @@ export default function VehicleCostStatsPage() {
     <div>
       <Typography.Title level={3} style={{ marginBottom: 24 }}>
         <DashboardOutlined style={{ marginRight: 8 }} />
-        Thống kê chi phí xe
+        Thống kê khấu hao xe
       </Typography.Title>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
