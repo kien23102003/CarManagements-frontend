@@ -128,7 +128,13 @@ export default function VehicleListPage() {
     { title: 'Dòng xe', dataIndex: 'modelName', key: 'model', render: (v) => v || '-' },
     { title: 'Năm SX', dataIndex: 'yearManufacture', key: 'year', render: (v) => v || '-' },
     { title: 'Số km', dataIndex: 'mileage', key: 'km', render: (v) => (v ? v.toLocaleString('vi-VN') : '-') },
-    { title: 'Tài xế', dataIndex: 'currentDriverName', key: 'driver', render: (v) => v || '-' },
+    {
+      title: 'Tài xế',
+      key: 'driver',
+      render: (_, record) => record.currentDriverId == null
+        ? <Tag color="volcano">Chưa có tài xế</Tag>
+        : <Tag color="blue">{record.currentDriverName}</Tag>,
+    },
     {
       title: 'Trạng thái',
       dataIndex: 'status',

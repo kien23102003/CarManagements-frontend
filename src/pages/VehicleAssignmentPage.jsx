@@ -225,13 +225,13 @@ export default function VehicleAssignmentPage() {
       dataIndex: 'currentDriverName',
       key: 'currentDriverName',
       width: 120,
-      render: (driverName) => 
-        driverName ? (
+      render: (driverName, record) => 
+        record.currentDriverId != null ? (
           <Tag icon={<UserOutlined />} color="blue">
             {driverName}
           </Tag>
         ) : (
-          <span style={{ color: '#999' }}>—</span>
+          <Tag color="volcano">Chưa có tài xế</Tag>
         ),
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },

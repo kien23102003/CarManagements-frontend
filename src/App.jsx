@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './services/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import RoleRoute from './components/RoleRoute';
 import MainLayout from './components/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -40,6 +41,10 @@ import DisposalProposalListPage from './pages/DisposalProposalListPage';
 import DisposalProposalDetailPage from './pages/DisposalProposalDetailPage';
 import DisposalProposalCreatePage from './pages/DisposalProposalCreatePage';
 import VehicleDisposalHistoryPage from './pages/VehicleDisposalHistoryPage';
+import DriverListPage from './pages/DriverListPage';
+import DriverFormPage from './pages/DriverFormPage';
+import DriverTransferListPage from './pages/DriverTransferListPage';
+import DriverTransferDetailPage from './pages/DriverTransferDetailPage';
 
 export default function App() {
   return (
@@ -65,6 +70,26 @@ export default function App() {
             <Route path="vehicles/assignment" element={<VehicleAssignmentPage />} />
             <Route path="vehicles/:vehicleId/accessories" element={<VehicleAccessoriesPage />} />
             <Route path="vehicles/:vehicleId/disposal-proposals" element={<VehicleDisposalHistoryPage />} />
+            <Route path="drivers" element={<DriverListPage />} />
+            <Route path="drives" element={<Navigate to="/drivers" replace />} />
+            <Route path="drivers/new" element={<DriverFormPage />} />
+            <Route path="drivers/:id/edit" element={<DriverFormPage />} />
+            <Route
+              path="driver-transfers"
+              element={(
+                <RoleRoute allowRoles={['Operator']}>
+                  <DriverTransferListPage />
+                </RoleRoute>
+              )}
+            />
+            <Route
+              path="driver-transfers/:id"
+              element={(
+                <RoleRoute allowRoles={['Operator']}>
+                  <DriverTransferDetailPage />
+                </RoleRoute>
+              )}
+            />
 
             <Route path="accessories" element={<AccessoryListPage />} />
             <Route path="accessories/new" element={<AccessoryFormPage />} />
