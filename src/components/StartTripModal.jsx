@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Form, Input, InputNumber, Modal, Select, Typography } from "antd"
 import { getTripHistoryByVehicle, startTrip } from "../services/tripLogService"
 
@@ -8,8 +8,6 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
     const [minStartMileage, setMinStartMileage] = useState(null)
-    const [lastTripDestination, setLastTripDestination] = useState(null)
-    const [lastTripEndMileage, setLastTripEndMileage] = useState(null)
 
     const driverOptions = useMemo(() => {
         if (!vehicle?.currentDriverId) return []
@@ -22,13 +20,8 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
     useEffect(() => {
         form.setFieldsValue({
             driverId: vehicle?.currentDriverId || undefined,
-            plannedDays: 0,
-            plannedHours: 0,
-            plannedMinutes: 0,
         })
         setMinStartMileage(null)
-        setLastTripDestination(null)
-        setLastTripEndMileage(null)
     }, [form, vehicle])
 
     useEffect(() => {
@@ -37,18 +30,6 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
             try {
                 const data = await getTripHistoryByVehicle(vehicle.vehicleId)
                 const trips = data?.trips || []
-                const lastCompletedByVehicle = trips
-                    .filter((t) => t?.endTime)
-                    .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0]
-
-                if (lastCompletedByVehicle) {
-                    setLastTripDestination(lastCompletedByVehicle.destination || null)
-                    if (lastCompletedByVehicle.endMileage != null) {
-                        setLastTripEndMileage(Number(lastCompletedByVehicle.endMileage))
-                    }
-                }
-
-                let driverEndMileage = null
                 const currentDriverId = vehicle?.currentDriverId
                 if (currentDriverId) {
                     const lastCompletedByDriver = trips
@@ -56,32 +37,11 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                         .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0]
 
                     if (lastCompletedByDriver?.endMileage != null) {
-                        driverEndMileage = Number(lastCompletedByDriver.endMileage)
-                        setMinStartMileage(driverEndMileage)
+                        setMinStartMileage(Number(lastCompletedByDriver.endMileage))
                     }
-                }
-
-                const suggestedOrigin = lastCompletedByVehicle?.destination || vehicle?.currentBranchName || undefined
-                const suggestedMileageCandidates = [
-                    lastCompletedByVehicle?.endMileage,
-                    vehicle?.currentMileage,
-                    driverEndMileage,
-                ].filter((v) => v != null).map((v) => Number(v))
-                const suggestedMileage = suggestedMileageCandidates.length
-                    ? Math.max(...suggestedMileageCandidates)
-                    : undefined
-
-                const currentValues = form.getFieldsValue(["origin", "startMileage"])
-                if (!currentValues.origin && suggestedOrigin) {
-                    form.setFieldsValue({ origin: suggestedOrigin })
-                }
-                if (!currentValues.startMileage && suggestedMileage != null) {
-                    form.setFieldsValue({ startMileage: suggestedMileage })
                 }
             } catch (error) {
                 setMinStartMileage(null)
-                setLastTripDestination(null)
-                setLastTripEndMileage(null)
             } finally {
             }
         }
@@ -100,9 +60,6 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                 origin: values.origin,
                 destination: values.destination,
                 purpose: values.purpose || "",
-                plannedDurationDays: values.plannedDays || 0,
-                plannedDurationHours: values.plannedHours || 0,
-                plannedDurationMinutes: values.plannedMinutes || 0,
             }
 
             await startTrip(payload)
@@ -129,8 +86,7 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
             confirmLoading={loading}
             okButtonProps={{ disabled: !vehicle?.vehicleId || driverOptions.length === 0 }}
             title="Tạo chuyến mới"
-            destroyOnHidden
-            forceRender
+            destroyOnClose
         >
             <div style={{ marginBottom: 16 }}>
                 <Text strong>{vehicle?.licensePlate || "Xe chưa chọn"}</Text>
@@ -176,11 +132,7 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                             },
                         }),
                     ]}
-                    extra={
-                        minStartMileage != null || vehicle?.currentMileage != null || lastTripEndMileage != null
-                            ? `Gợi ý: Km tối thiểu (theo tài xế) ${minStartMileage ?? "--"} · Km xe hiện tại ${vehicle?.currentMileage ?? "--"} · Km cuối chuyến gần nhất ${lastTripEndMileage ?? "--"}`
-                            : undefined
-                    }
+                    extra={minStartMileage != null ? `Km tối thiểu: ${minStartMileage}` : undefined}
                 >
                     <InputNumber min={1} style={{ width: "100%" }} placeholder="Nhập số km" />
                 </Form.Item>
@@ -189,11 +141,6 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                     label="Điểm đi"
                     name="origin"
                     rules={[{ required: true, message: "Vui lòng nhập điểm đi" }]}
-                    extra={
-                        lastTripDestination || vehicle?.currentBranchName
-                            ? `Gợi ý: ${lastTripDestination ?? vehicle?.currentBranchName}`
-                            : undefined
-                    }
                 >
                     <Input placeholder="Ví dụ: Hà Nội" />
                 </Form.Item>
@@ -207,39 +154,7 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
                 </Form.Item>
 
                 <Form.Item label="Mục đích" name="purpose">
-                    <Input placeholder="Tùy chọn" />
-                </Form.Item>
-
-                <Form.Item
-                    label="Thời lượng dự kiến"
-                    required
-                    rules={[
-                        () => ({
-                            validator() {
-                                const values = form.getFieldsValue(["plannedDays", "plannedHours", "plannedMinutes"])
-                                const total =
-                                    (Number(values.plannedDays) || 0) * 24 * 60 +
-                                    (Number(values.plannedHours) || 0) * 60 +
-                                    (Number(values.plannedMinutes) || 0)
-                                if (total <= 0) {
-                                    return Promise.reject(new Error("Vui lòng nhập thời lượng dự kiến"))
-                                }
-                                return Promise.resolve()
-                            },
-                        }),
-                    ]}
-                >
-                    <div style={{ display: "flex", gap: 8 }}>
-                        <Form.Item name="plannedDays" noStyle>
-                            <InputNumber min={0} style={{ width: "33%" }} placeholder="Ngày" />
-                        </Form.Item>
-                        <Form.Item name="plannedHours" noStyle>
-                            <InputNumber min={0} max={23} style={{ width: "33%" }} placeholder="Giờ" />
-                        </Form.Item>
-                        <Form.Item name="plannedMinutes" noStyle>
-                            <InputNumber min={0} max={59} style={{ width: "33%" }} placeholder="Phút" />
-                        </Form.Item>
-                    </div>
+                    <Input placeholder="Tuỳ chọn" />
                 </Form.Item>
             </Form>
         </Modal>
