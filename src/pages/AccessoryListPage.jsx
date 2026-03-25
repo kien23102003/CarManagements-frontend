@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  App,
   Button,
   Card,
+  Image,
   Input,
-  Modal,
-  Form,
-  InputNumber,
   Select,
   Space,
   Switch,
@@ -14,34 +13,27 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
-import { EditOutlined, InboxOutlined, PlusOutlined, ToolOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import accessoryApi from '../api/accessoryApi';
 import { useAuth } from '../services/AuthContext';
+import {
+  ACCESSORY_TYPE_OPTIONS,
+  canReadAccessoryModule,
+  canWriteAccessoryCatalog,
+  formatCurrency,
+  unwrapData,
+} from '../services/accessoryHelpers';
 
 const { Text } = Typography;
 
-const TYPE_OPTIONS = [
-  { value: 'Reusable', label: 'Tái sử dụng' },
-  { value: 'Consumable', label: 'Tiêu hao' },
-  { value: 'Fixed', label: 'Cố định' },
-];
-
-const canWrite = (roles) =>
-  roles.includes('Operator') || roles.includes('Executive Management');
-
-const canRead = (roles) =>
-  roles.includes('Operator') ||
-  roles.includes('Executive Management') ||
-  roles.includes('Branch Asset Accountant');
-
 export default function AccessoryListPage() {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const { user } = useAuth();
   const roles = user?.roles || [];
-  const canReadModule = canRead(roles);
-  const canWriteModule = canWrite(roles);
+  const canReadModule = canReadAccessoryModule(roles);
+  const canWriteModule = canWriteAccessoryCatalog(roles);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -53,134 +45,116 @@ export default function AccessoryListPage() {
     pageSize: 10,
   });
 
-  const [importOpen, setImportOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [selectedAccessory, setSelectedAccessory] = useState(null);
-  const [importForm] = Form.useForm();
-
-  const loadData = async () => {
-    if (!canReadModule) return;
-    setLoading(true);
-    try {
-      const params = {
-        ...query,
-        keyword: query.keyword || undefined,
-      };
-      const { data } = await accessoryApi.getAccessories(params);
-      setItems(data.data || data || []);
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải danh sách phụ kiện');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadData();
-  }, [query.page, query.pageSize, query.type, query.isActive]);
-
-  const openImportModal = (record) => {
-    setSelectedAccessory(record);
-    importForm.resetFields();
-    setImportOpen(true);
-  };
-
-  const handleImport = async () => {
-    try {
-      const values = await importForm.validateFields();
-      if (!selectedAccessory) return;
-      setImporting(true);
-      await accessoryApi.importAccessoryStock(selectedAccessory.id, {
-        quantity: values.quantity,
-        notes: values.notes,
-      });
-      message.success('Nhập kho thành công');
-      setImportOpen(false);
-      setSelectedAccessory(null);
-      loadData();
-    } catch (err) {
-      if (!err?.errorFields) {
-        message.error(err.response?.data?.message || 'Nhập kho thất bại');
-      }
-    } finally {
-      setImporting(false);
+    if (!canReadModule) {
+      return;
     }
-  };
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          keyword: query.keyword || undefined,
+          type: query.type,
+          isActive: query.isActive,
+          page: query.page,
+          pageSize: query.pageSize,
+        };
+        const { data } = await accessoryApi.getAccessories(params);
+        setItems(unwrapData(data));
+      } catch (error) {
+        message.error(error.response?.data?.message || 'Khong the tai danh sach phu kien');
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [canReadModule, message, query]);
 
   const columns = useMemo(
     () => [
-      { title: 'Mã', dataIndex: 'code', key: 'code', width: 140 },
-      { title: 'Tên', dataIndex: 'name', key: 'name' },
       {
-        title: 'Loại',
+        title: 'Hinh anh',
+        dataIndex: 'imageUrl',
+        key: 'imageUrl',
+        width: 110,
+        render: (value) =>
+          value ? (
+            <Image
+              src={value}
+              alt="Accessory"
+              width={52}
+              height={52}
+              style={{ objectFit: 'cover', borderRadius: 8 }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 8,
+                background: '#f5f5f5',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#999',
+              }}
+            >
+              N/A
+            </div>
+          ),
+      },
+      { title: 'Ma', dataIndex: 'code', key: 'code', width: 140 },
+      { title: 'Ten', dataIndex: 'name', key: 'name' },
+      {
+        title: 'Loai',
         dataIndex: 'type',
         key: 'type',
-        width: 120,
-        render: (v) => TYPE_OPTIONS.find((option) => option.value === v)?.label || v,
+        width: 140,
+        render: (value) => ACCESSORY_TYPE_OPTIONS.find((item) => item.value === value)?.label || value,
       },
       {
-        title: 'Tồn kho',
-        dataIndex: 'quantityInStock',
-        key: 'stock',
-        width: 120,
-        render: (value, record) => {
-          const lowStock =
-            Number.isFinite(record.minimumStock) &&
-            record.minimumStock !== null &&
-            value <= record.minimumStock;
-          return (
-            <Space>
-              <Text strong={lowStock}>{value ?? 0}</Text>
-              {lowStock && <Tag color="red">Thấp</Tag>}
-            </Space>
-          );
-        },
-      },
-      {
-        title: 'Tồn tối thiểu',
-        dataIndex: 'minimumStock',
-        key: 'minimumStock',
-        width: 120,
-        render: (v) => v ?? '-',
-      },
-      {
-        title: 'Đơn giá',
+        title: 'Don gia',
         dataIndex: 'unitPrice',
         key: 'unitPrice',
-        width: 140,
-        render: (v) => (v == null ? '-' : `${Number(v).toLocaleString('vi-VN')} VND`),
+        width: 150,
+        render: formatCurrency,
       },
       {
-        title: 'Kích hoạt',
+        title: 'Ton toi thieu mac dinh',
+        dataIndex: 'minimumStock',
+        key: 'minimumStock',
+        width: 170,
+        render: (value) => value ?? '-',
+      },
+      {
+        title: 'Trang thai',
         dataIndex: 'isActive',
         key: 'isActive',
-        width: 100,
-        render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Có' : 'Không'}</Tag>,
+        width: 120,
+        render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? 'Dang dung' : 'Ngung dung'}</Tag>,
       },
       {
-        title: 'Thao tác',
+        title: 'Ghi chu',
+        key: 'stockHint',
+        width: 220,
+        render: () => <Text type="secondary">Ton kho thuc te duoc theo doi theo chi nhanh.</Text>,
+      },
+      {
+        title: 'Thao tac',
         key: 'actions',
-        width: 160,
+        width: 100,
         render: (_, record) => (
-          <Space>
-            <Tooltip title={canWriteModule ? 'Sửa' : 'Không có quyền'}>
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                disabled={!canWriteModule}
-                onClick={() => navigate(`/accessories/${record.id}`)}
-              />
-            </Tooltip>
-            <Tooltip title={canWriteModule ? 'Nhập kho' : 'Không có quyền'}>
-              <Button
-                size="small"
-                icon={<InboxOutlined />}
-                disabled={!canWriteModule}
-                onClick={() => openImportModal(record)}
-              />
-            </Tooltip>
-          </Space>
+          <Tooltip title={canWriteModule ? 'Sua' : 'Khong co quyen'}>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              disabled={!canWriteModule}
+              onClick={() => navigate(`/accessories/${record.id}`)}
+            />
+          </Tooltip>
         ),
       },
     ],
@@ -188,24 +162,26 @@ export default function AccessoryListPage() {
   );
 
   if (!canReadModule) {
-    return <Card>Bạn không có quyền truy cập chức năng này.</Card>;
+    return <Card>Ban khong co quyen truy cap chuc nang nay.</Card>;
   }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Quản lý phụ kiện</h2>
+        <h2 style={{ margin: 0 }}>Quan ly phu kien</h2>
         <Space>
-          <Button icon={<ToolOutlined />} onClick={() => navigate('/accessories/issue')}>
-            Cấp phát phụ kiện
-          </Button>
+          <Button onClick={() => navigate('/branch-accessory-stock')}>Ton kho chi nhanh</Button>
+          <Button onClick={() => navigate('/accessory-purchase-requests')}>Phieu de xuat mua</Button>
+          <Button onClick={() => navigate('/accessory-goods-receipts')}>Phieu nhap hang</Button>
+          <Button onClick={() => navigate('/vehicle-accessory-requirements')}>Dinh muc phu kien</Button>
+          <Button onClick={() => navigate('/accessories/issue')}>Cap phat phu kien</Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             disabled={!canWriteModule}
             onClick={() => navigate('/accessories/new')}
           >
-            Thêm phụ kiện
+            Them phu kien
           </Button>
         </Space>
       </div>
@@ -214,30 +190,35 @@ export default function AccessoryListPage() {
         <Space wrap>
           <Input.Search
             allowClear
-            placeholder="Tìm theo mã/tên"
+            placeholder="Tim theo ma/ten"
             style={{ width: 260 }}
             onSearch={(value) => setQuery((prev) => ({ ...prev, keyword: value, page: 1 }))}
           />
           <Select
             allowClear
-            placeholder="Loại"
-            style={{ width: 160 }}
-            options={TYPE_OPTIONS}
+            placeholder="Loai"
+            style={{ width: 180 }}
+            options={ACCESSORY_TYPE_OPTIONS}
             value={query.type}
             onChange={(value) => setQuery((prev) => ({ ...prev, type: value, page: 1 }))}
           />
           <Select
             allowClear
-            placeholder="Kích hoạt"
-            style={{ width: 140 }}
+            placeholder="Trang thai"
+            style={{ width: 160 }}
             value={query.isActive}
             onChange={(value) => setQuery((prev) => ({ ...prev, isActive: value, page: 1 }))}
             options={[
-              { value: true, label: 'Đang dùng' },
-              { value: false, label: 'Ngừng dùng' },
+              { value: true, label: 'Dang dung' },
+              { value: false, label: 'Ngung dung' },
             ]}
           />
-          <Button onClick={loadData}>Làm mới</Button>
+          <Switch
+            checkedChildren="Dang hoat dong"
+            unCheckedChildren="Tat ca"
+            checked={query.isActive === true}
+            onChange={(checked) => setQuery((prev) => ({ ...prev, isActive: checked ? true : undefined, page: 1 }))}
+          />
         </Space>
       </Card>
 
@@ -254,33 +235,6 @@ export default function AccessoryListPage() {
           onChange: (page, pageSize) => setQuery((prev) => ({ ...prev, page, pageSize })),
         }}
       />
-
-      <Modal
-        title={`Nhập kho${selectedAccessory ? ` - ${selectedAccessory.name}` : ''}`}
-        open={importOpen}
-        onCancel={() => setImportOpen(false)}
-        onOk={handleImport}
-        okButtonProps={{ loading: importing }}
-      >
-        <Form layout="vertical" form={importForm}>
-          <Form.Item
-            name="quantity"
-            label="Số lượng"
-            rules={[
-              { required: true, message: 'Vui lòng nhập số lượng' },
-              { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' },
-            ]}
-          >
-            <InputNumber style={{ width: '100%' }} min={1} />
-          </Form.Item>
-          <Form.Item name="notes" label="Ghi chú">
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item label="Người thực hiện (người dùng hiện tại)">
-            <Switch checked disabled />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 }

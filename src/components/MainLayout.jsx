@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -16,6 +16,7 @@ import {
   MenuUnfoldOutlined,
   SafetyCertificateOutlined,
   AppstoreOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
@@ -36,13 +37,27 @@ const NAV_ITEMS = [
     ],
   },
   {
+    key: 'drivers-menu',
+    icon: <TeamOutlined />,
+    label: 'Tài xế',
+    roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'],
+    children: [
+      { key: '/drivers', label: 'Danh sách tài xế' },
+      { key: '/driver-transfers', label: 'Điều chuyển tài xế', roles: ['Operator'] },
+    ],
+  },
+  {
     key: 'accessories-menu',
     icon: <AppstoreOutlined />,
     label: 'Phụ kiện',
-    roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'],
+    roles: ['Operator', 'Branch Asset Accountant', 'Executive Management', 'Manager'],
     children: [
       { key: '/accessories', label: 'Danh sách phụ kiện' },
-      { key: '/accessories/issue', label: 'Cấp phát phụ kiện', roles: ['Operator', 'Executive Management'] },
+      { key: '/branch-accessory-stock', label: 'Tồn kho chi nhánh' },
+      { key: '/accessory-purchase-requests', label: 'Phiếu đề xuất mua' },
+      { key: '/accessory-goods-receipts', label: 'Phiếu nhập hàng' },
+      { key: '/vehicle-accessory-requirements', label: 'Định mức phụ kiện' },
+      { key: '/accessories/issue', label: 'Cấp phát phụ kiện', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management', 'Manager'] },
       { key: '/accessory-transactions', label: 'Lịch sử giao dịch' },
     ],
   },
@@ -52,7 +67,7 @@ const NAV_ITEMS = [
     label: 'Quản lý vận hành chuyến đi',
     roles: ['Operator', 'Branch Asset Accountant'],
   },
-  { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant'] },
+  { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management', 'Manager'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
   { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },

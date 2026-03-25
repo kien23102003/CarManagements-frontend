@@ -1,64 +1,68 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Card, Form, Input, InputNumber, Select, Switch, message } from 'antd';
+import { App, Button, Card, Form, Input, InputNumber, Select, Switch } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import accessoryApi from '../api/accessoryApi';
 import { useAuth } from '../services/AuthContext';
-
-const TYPE_OPTIONS = [
-  { value: 'Reusable', label: 'Tái sử dụng' },
-  { value: 'Consumable', label: 'Tiêu hao' },
-  { value: 'Fixed', label: 'Cố định' },
-];
-
-const canWrite = (roles) =>
-  roles.includes('Operator') || roles.includes('Executive Management');
+import { ACCESSORY_TYPE_OPTIONS, canWriteAccessoryCatalog, unwrapData } from '../services/accessoryHelpers';
 
 export default function AccessoryFormPage() {
   const [form] = Form.useForm();
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { id } = useParams();
-  const isEdit = !!id;
+  const isEdit = Boolean(id);
   const { user } = useAuth();
   const roles = user?.roles || [];
-  const writable = useMemo(() => canWrite(roles), [roles]);
+  const writable = useMemo(() => canWriteAccessoryCatalog(roles), [roles]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadDetail = async () => {
-    if (!isEdit) return;
-    setLoading(true);
-    try {
-      const { data } = await accessoryApi.getAccessoryById(id);
-      const payload = data.data || data;
-      form.setFieldsValue({
-        ...payload,
-        quantityInStock: payload.quantityInStock ?? 0,
-      });
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Không thể tải chi tiết phụ kiện');
-      navigate('/accessories');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    if (!isEdit) {
+      return;
+    }
+
+    const loadDetail = async () => {
+      setLoading(true);
+      try {
+        const { data } = await accessoryApi.getAccessoryById(id);
+        const payload = unwrapData(data);
+        form.setFieldsValue({
+          code: payload.code,
+          name: payload.name,
+          type: payload.type,
+          minimumStock: payload.minimumStock,
+          unitPrice: payload.unitPrice,
+          imageUrl: payload.imageUrl,
+          isActive: payload.isActive,
+        });
+      } catch (error) {
+        message.error(error.response?.data?.message || 'Không thể tải chi tiết phụ kiện');
+        navigate('/accessories');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadDetail();
-  }, [id]);
+  }, [form, id, isEdit, message, navigate]);
 
   const handleSubmit = async (values) => {
-    if (!writable) return;
+    if (!writable) {
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         code: values.code?.trim(),
         name: values.name?.trim(),
         type: values.type,
-        quantityInStock: values.quantityInStock ?? 0,
-        unitPrice: values.unitPrice ?? null,
         minimumStock: values.minimumStock ?? null,
+        unitPrice: values.unitPrice ?? null,
+        imageUrl: values.imageUrl?.trim() || null,
         isActive: values.isActive ?? true,
       };
 
@@ -69,20 +73,17 @@ export default function AccessoryFormPage() {
         await accessoryApi.createAccessory(payload);
         message.success('Tạo phụ kiện thành công');
       }
+
       navigate('/accessories');
-    } catch (err) {
-      message.error(err.response?.data?.message || 'Lưu phụ kiện thất bại');
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Lưu phụ kiện thất bại');
     } finally {
       setSaving(false);
     }
   };
 
   if (!writable) {
-    return (
-      <Card>
-        Bạn không có quyền chỉnh sửa phụ kiện.
-      </Card>
-    );
+    return <Card>Bạn không có quyền chỉnh sửa phụ kiện.</Card>;
   }
 
   return (
@@ -96,31 +97,45 @@ export default function AccessoryFormPage() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ type: 'Reusable', isActive: true, quantityInStock: 0 }}
+          initialValues={{ type: 'Reusable', isActive: true }}
           onFinish={handleSubmit}
         >
-          <Form.Item name="code" label="Mã phụ kiện" rules={[{ required: true, message: 'Vui lòng nhập mã phụ kiện' }]}>
+          <Form.Item
+            name="code"
+            label="Mã phụ kiện"
+            rules={[{ required: true, message: 'Vui lòng nhập mã phụ kiện' }]}
+          >
             <Input maxLength={50} />
           </Form.Item>
-          <Form.Item name="name" label="Tên phụ kiện" rules={[{ required: true, message: 'Vui lòng nhập tên phụ kiện' }]}>
+
+          <Form.Item
+            name="name"
+            label="Tên phụ kiện"
+            rules={[{ required: true, message: 'Vui lòng nhập tên phụ kiện' }]}
+          >
             <Input maxLength={200} />
           </Form.Item>
-          <Form.Item name="type" label="Loại phụ kiện" rules={[{ required: true, message: 'Vui lòng chọn loại phụ kiện' }]}>
-            <Select options={TYPE_OPTIONS} />
-          </Form.Item>
+
           <Form.Item
-            name="quantityInStock"
-            label="Số lượng tồn kho"
-            rules={[{ required: true, message: 'Vui lòng nhập số lượng tồn kho' }]}
+            name="type"
+            label="Loại phụ kiện"
+            rules={[{ required: true, message: 'Vui lòng chọn loại phụ kiện' }]}
           >
+            <Select options={ACCESSORY_TYPE_OPTIONS} />
+          </Form.Item>
+
+          <Form.Item name="minimumStock" label="Tồn kho tối thiểu mặc định">
             <InputNumber style={{ width: '100%' }} min={0} />
           </Form.Item>
-          <Form.Item name="minimumStock" label="Tồn kho tối thiểu">
+
+          <Form.Item name="unitPrice" label="Đơn giá tham chiếu">
             <InputNumber style={{ width: '100%' }} min={0} />
           </Form.Item>
-          <Form.Item name="unitPrice" label="Đơn giá">
-            <InputNumber style={{ width: '100%' }} min={0} />
+
+          <Form.Item name="imageUrl" label="URL hình ảnh">
+            <Input maxLength={500} placeholder="https://..." />
           </Form.Item>
+
           <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked">
             <Switch />
           </Form.Item>

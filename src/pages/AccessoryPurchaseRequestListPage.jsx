@@ -1,0 +1,188 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { App, Button, Card, Select, Space, Table, Tag } from 'antd';
+import accessoryApi from '../api/accessoryApi';
+import assetApi from '../api/assetApi';
+import { useAuth } from '../services/AuthContext';
+import {
+  PURCHASE_REQUEST_STATUS_META,
+  branchOption,
+  canApproveAccessoryPurchase,
+  canReadAccessoryModule,
+  canViewAccessoryAcrossBranches,
+  unwrapData,
+} from '../services/accessoryHelpers';
+
+export default function AccessoryPurchaseRequestListPage() {
+  const { message } = App.useApp();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const roles = user?.roles || [];
+  const readable = useMemo(() => canReadAccessoryModule(roles), [roles]);
+  const canApprove = useMemo(() => canApproveAccessoryPurchase(roles), [roles]);
+  const canViewAcrossBranches = useMemo(() => canViewAccessoryAcrossBranches(roles), [roles]);
+
+  const [branches, setBranches] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    branchId: user?.branchId || undefined,
+    status: undefined,
+    page: 1,
+    pageSize: 10,
+  });
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const { data } = await assetApi.getBranches();
+        setBranches(unwrapData(data));
+      } catch {
+        setBranches([]);
+      }
+    };
+
+    loadBranches();
+  }, []);
+
+  useEffect(() => {
+    if (!readable) {
+      return;
+    }
+
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { data } = await accessoryApi.getPurchaseRequests(filters);
+        setItems(unwrapData(data));
+      } catch (error) {
+        message.error(error.response?.data?.message || 'Khong the tai phieu de xuat mua phu kien');
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [filters, message, readable]);
+
+  const branchOptions = branches.map(branchOption);
+
+  const columns = [
+    { title: 'Ma phieu', dataIndex: 'requestCode', key: 'requestCode', width: 180 },
+    { title: 'Nguoi de xuat', dataIndex: 'requesterName', key: 'requesterName', width: 180 },
+    {
+      title: 'Ngay de xuat',
+      dataIndex: 'requestDate',
+      key: 'requestDate',
+      width: 150,
+      render: (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-'),
+    },
+    {
+      title: 'Ngay duyet',
+      dataIndex: 'approvedDate',
+      key: 'approvedDate',
+      width: 150,
+      render: (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-'),
+    },
+    {
+      title: 'Trang thai',
+      dataIndex: 'status',
+      key: 'status',
+      width: 150,
+      render: (value) => {
+        const meta = PURCHASE_REQUEST_STATUS_META[value] || { label: value, color: 'default' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: 'Chi tiet',
+      key: 'detailCount',
+      width: 120,
+      render: (_, record) => `${record.details?.length || 0} dong`,
+    },
+    {
+      title: 'Thao tac',
+      key: 'actions',
+      width: 180,
+      render: (_, record) => (
+        <Space>
+          <Button size="small" onClick={() => navigate(`/accessory-purchase-requests/${record.id}`)}>
+            Chi tiet
+          </Button>
+          {canApprove && record.status === 'Pending' && (
+            <Button size="small" type="primary" onClick={() => navigate(`/accessory-purchase-requests/${record.id}`)}>
+              Duyet
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
+  if (canViewAcrossBranches) {
+    columns.splice(1, 0, {
+      title: 'Chi nhanh',
+      dataIndex: 'branchName',
+      key: 'branchName',
+      width: 180,
+      render: (value, record) => value || `Chi nhanh #${record.branchId}`,
+    });
+  }
+
+  if (!readable) {
+    return <Card>Ban khong co quyen truy cap chuc nang nay.</Card>;
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>Phieu de xuat mua phu kien</h2>
+        <Button type="primary" onClick={() => navigate('/accessory-purchase-requests/new')}>
+          Tao phieu de xuat
+        </Button>
+      </div>
+
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          {canViewAcrossBranches && (
+            <Select
+              allowClear={!user?.branchId}
+              placeholder="Chi nhanh"
+              style={{ width: 180 }}
+              disabled={Boolean(user?.branchId) && !canViewAcrossBranches}
+              value={filters.branchId}
+              options={branchOptions}
+              onChange={(value) => setFilters((prev) => ({ ...prev, branchId: value, page: 1 }))}
+            />
+          )}
+          <Select
+            allowClear
+            placeholder="Trang thai"
+            style={{ width: 180 }}
+            value={filters.status}
+            options={Object.entries(PURCHASE_REQUEST_STATUS_META).map(([value, meta]) => ({
+              value,
+              label: meta.label,
+            }))}
+            onChange={(value) => setFilters((prev) => ({ ...prev, status: value, page: 1 }))}
+          />
+        </Space>
+      </Card>
+
+      <Table
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        dataSource={items}
+        pagination={{
+          current: filters.page,
+          pageSize: filters.pageSize,
+          total: (filters.page - 1) * filters.pageSize + items.length + (items.length === filters.pageSize ? filters.pageSize : 0),
+          showSizeChanger: true,
+          onChange: (page, pageSize) => setFilters((prev) => ({ ...prev, page, pageSize })),
+        }}
+      />
+    </div>
+  );
+}

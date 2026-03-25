@@ -30,8 +30,12 @@ export function AuthProvider({ children }) {
     const payload = data.data || data;
     localStorage.setItem('accessToken', payload.accessToken);
     localStorage.setItem('refreshToken', payload.refreshToken);
-    setUser(payload.user);
-    return payload;
+
+    // Fetch canonical profile so FE always has branchId/roles
+    // even when login payload is minimal.
+    const meRes = await authApi.getMe();
+    setUser(meRes.data);
+    return { ...payload, user: meRes.data };
   }, []);
 
   const logout = useCallback(async () => {
