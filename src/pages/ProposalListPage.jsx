@@ -1,9 +1,9 @@
-﻿import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Table,
     Tag,
-    App,
+    message,
     Space,
     Button,
     Modal,
@@ -14,6 +14,7 @@ import {
     Select,
     Row,
     Col,
+    Tabs,
     Divider,
 } from 'antd';
 import {
@@ -26,6 +27,8 @@ import {
 import dayjs from 'dayjs';
 import proposalApi from '../api/proposalApi';
 import { useAuth } from '../services/AuthContext';
+import PurchasePlanPage from './PurchasePlanPage';
+
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -35,6 +38,8 @@ const STATUS_CONFIG = {
     Pending: { label: 'Chờ duyệt', color: 'orange' },
     Approved: { label: 'Đã duyệt', color: 'green' },
     Rejected: { label: 'Từ chối', color: 'red' },
+    Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'blue' },
+    Completed: { label: 'Hoàn thành', color: 'cyan' },
 };
 
 export default function ProposalListPage() {
@@ -49,16 +54,15 @@ export default function ProposalListPage() {
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [selectedId, setSelectedId] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
-
     const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
 
     const { user } = useAuth();
-    const { message } = App.useApp();
 
     // Kiểm tra quyền (Roles là mảng nên dùng .includes)
     const isExecutive = user?.roles?.some(r => r === 'Executive Management' || r === 'Manager');
     const isAccountant = user?.roles?.some(r => r === 'Branch Asset Accountant' || r === 'Chief Accountant');
+    // const isOperator = user?.roles?.includes('Operator');
 
     useEffect(() => {
         loadData();
@@ -76,11 +80,12 @@ export default function ProposalListPage() {
         }
     };
 
+    // ===== SEARCH + FILTER =====
     const filteredData = useMemo(() => {
         return data.filter((item) => {
             const matchSearch =
-                String(item?.proposalId ?? '').includes(searchText) ||
-                item?.description
+                item.proposalId.toString().includes(searchText) ||
+                item.description
                     ?.toLowerCase()
                     .includes(searchText.toLowerCase());
 
@@ -96,8 +101,9 @@ export default function ProposalListPage() {
             await proposalApi.managerApprove(id);
             message.success('Quản lý đã duyệt');
             loadData();
-        } catch {
-            message.error('Không thể duyệt');
+        } catch (error) {
+            const msg = error?.response?.data?.message || 'Không thể duyệt';
+            message.error(msg);
         }
     };
 
@@ -115,8 +121,9 @@ export default function ProposalListPage() {
             setRejectModalOpen(false);
             setRejectReason('');
             loadData();
-        } catch {
-            message.error('Từ chối thất bại');
+        } catch (error) {
+            const msg = error?.response?.data?.message || 'Từ chối thất bại';
+            message.error(msg);
         }
     };
 
@@ -125,8 +132,9 @@ export default function ProposalListPage() {
             await proposalApi.delete(id);
             message.success('Đã xoá');
             loadData();
-        } catch {
-            message.error('Không thể xoá');
+        } catch (error) {
+            const msg = error?.response?.data?.message || 'Không thể xoá';
+            message.error(msg);
         }
     };
 
@@ -173,15 +181,17 @@ export default function ProposalListPage() {
                         <div>{main}</div>
 
                         {rejectedPart && (
-                            <div style={{
-                                marginTop: 6,
-                                padding: '6px 10px',
-                                background: '#fff2f0',
-                                border: '1px solid #ffccc7',
-                                borderRadius: 6,
-                                color: '#cf1322',
-                                fontSize: 13,
-                            }}>
+                            <div
+                                style={{
+                                    marginTop: 6,
+                                    padding: '6px 10px',
+                                    background: '#fff2f0',
+                                    border: '1px solid #ffccc7',
+                                    borderRadius: 6,
+                                    color: '#cf1322',
+                                    fontSize: 13,
+                                }}
+                            >
                                 <b>Lý do từ chối:</b> {rejectedPart.trim()}
                             </div>
                         )}
@@ -199,22 +209,27 @@ export default function ProposalListPage() {
                 };
 
                 return (
-                    <Tag color={config.color} style={{
-                        borderRadius: 20,
-                        padding: '4px 12px',
-                        fontWeight: 500,
-                    }}>
+                    <Tag
+                        color={config.color}
+                        style={{
+                            borderRadius: 20,
+                            padding: '4px 12px',
+                            fontWeight: 500,
+                        }}
+                    >
                         {config.label}
                     </Tag>
                 );
             },
         },
+
         {
             title: 'Hành động',
             key: 'actions',
             align: 'center',
             width: 300,
             render: (_, record) => {
+                // Chỉ cho phép Duyệt, Từ chối, Hủy khi đề xuất đang ở trạng thái Chờ duyệt (Pending)
                 const disabled = record.status !== 'Pending';
 
                 return (
@@ -227,6 +242,7 @@ export default function ProposalListPage() {
                             Chi tiết
                         </Button>
 
+                        {/* CHỈ HIỂN THỊ NÚT DUYỆT/TỪ CHỐI NẾU LÀ MANAGER */}
                         {isExecutive && (
                             <>
                                 <Button
@@ -251,9 +267,10 @@ export default function ProposalListPage() {
                             </>
                         )}
 
+                        {/* ẨN NÚT HỦY ĐỐI VỚI KẾ TOÁN (Chỉ có Quản lý hoặc Người tạo mới được Hủy) */}
                         {!isAccountant && (
                             <Popconfirm
-                                title="Huỷ đề xuất này?"
+                                title="Hủy đề xuất này?"
                                 onConfirm={() => handleDelete(record.proposalId)}
                                 disabled={disabled}
                             >
@@ -263,7 +280,7 @@ export default function ProposalListPage() {
                                     icon={<DeleteOutlined />}
                                     disabled={disabled}
                                 >
-                                    Huỷ
+                                    Hủy
                                 </Button>
                             </Popconfirm>
                         )}
@@ -274,128 +291,149 @@ export default function ProposalListPage() {
     ];
 
     return (
-        <Card
-            style={{
-                borderRadius: 12,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            }}
-        >
-            <Title level={4}>Danh sách đề xuất mua xe</Title>
+        <div>
+            <Tabs
+                defaultActiveKey="plans"
+                items={[
+                    {
+                        key: 'plans',
+                        label: '📋 Kế hoạch mua (Ưu tiên)',
+                        children: <PurchasePlanPage />,
+                    },
+                    {
+                        key: 'proposals',
+                        label: '📝 Danh sách đề xuất',
+                        children: (
+                            <Card
+                                style={{
+                                    borderRadius: 12,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                                }}
+                            >
+                                <Title level={4}>Danh sách đề xuất mua xe</Title>
 
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-                <Col span={8}>
-                    <Input
-                        placeholder="Tìm theo mã hoặc mô tả..."
-                        prefix={<SearchOutlined />}
-                        allowClear
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
-                </Col>
+                                {/* SEARCH + FILTER BAR */}
+                                <Row gutter={16} style={{ marginBottom: 16 }}>
+                                    <Col span={8}>
+                                        <Input
+                                            placeholder="Tìm theo mã hoặc mô tả..."
+                                            prefix={<SearchOutlined />}
+                                            allowClear
+                                            onChange={(e) => setSearchText(e.target.value)}
+                                        />
+                                    </Col>
 
-                <Col span={6}>
-                    <Select
-                        placeholder="Lọc theo trạng thái"
-                        allowClear
-                        style={{ width: '100%' }}
-                        onChange={(value) => setStatusFilter(value)}
-                    >
-                        {Object.keys(STATUS_CONFIG).map((key) => (
-                            <Option key={key} value={key}>
-                                {STATUS_CONFIG[key].label}
-                            </Option>
-                        ))}
-                    </Select>
-                </Col>
+                                    <Col span={6}>
+                                        <Select
+                                            placeholder="Lọc theo trạng thái"
+                                            allowClear
+                                            style={{ width: '100%' }}
+                                            onChange={(value) => setStatusFilter(value)}
+                                        >
+                                            {Object.keys(STATUS_CONFIG).map((key) => (
+                                                <Option key={key} value={key}>
+                                                    {STATUS_CONFIG[key].label}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Col>
 
-                <Col span={6}>
-                    {!isExecutive && (
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => navigate('/proposals/create')}
-                        >
-                            Tạo đề xuất
-                        </Button>
-                    )}
-                </Col>
-            </Row>
+                                    <Col span={6}>
+                                        {/* KẾ TOÁN VÀ GIÁM ĐỐC KHÔNG ĐƯỢC TẠO ĐỀ XUẤT */}
+                                        {!isExecutive && !isAccountant && (
+                                            <Button
+                                                type="primary"
+                                                icon={<PlusOutlined />}
+                                                onClick={() => navigate('/proposals/create')}
+                                            >
+                                                Tạo đề xuất
+                                            </Button>
+                                        )}
+                                    </Col>
+                                </Row>
 
-            <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={filteredData}
-                loading={loading}
-                pagination={{ pageSize: 10 }}
-                bordered
+                                <Table
+                                    rowKey="proposalId"
+                                    columns={columns}
+                                    dataSource={filteredData}
+                                    loading={loading}
+                                    pagination={{ pageSize: 10 }}
+                                    bordered
+                                />
+
+                                <Modal
+                                    title="Lý do từ chối"
+                                    open={rejectModalOpen}
+                                    onOk={handleReject}
+                                    onCancel={() => setRejectModalOpen(false)}
+                                >
+                                    <TextArea
+                                        rows={4}
+                                        placeholder="Nhập lý do từ chối..."
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                    />
+                                </Modal>
+
+                                {/* CHI TIẾT ĐỀ XUẤT CHO GIÁM ĐỐC */}
+                                {selectedPlan && (
+                                    <Modal
+                                        title={`Chi tiết đề xuất #${selectedPlan.proposalId}`}
+                                        open={detailModalOpen}
+                                        onCancel={() => setDetailModalOpen(false)}
+                                        width={800}
+                                        footer={[
+                                            <Button key="close" onClick={() => setDetailModalOpen(false)}>
+                                                Đóng
+                                            </Button>
+                                        ]}
+                                    >
+                                        <div style={{ padding: '10px 0' }}>
+                                            <Row gutter={[16, 16]}>
+                                                <Col xs={24} sm={12}>
+                                                    <div><strong>Mô tả:</strong></div>
+                                                    <p>{selectedPlan.description}</p>
+                                                </Col>
+                                                <Col xs={24} sm={12}>
+                                                    <div><strong>Chi phí dự kiến:</strong></div>
+                                                    <p style={{ color: 'red', fontWeight: 'bold' }}>
+                                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPlan.proposedCost || 0)}
+                                                    </p>
+                                                </Col>
+                                            </Row>
+
+                                            <Divider />
+
+                                            <h4>Chi tiết cấu hình xe đề nghị mua:</h4>
+                                            <Table
+                                                dataSource={selectedPlan.branchDetails || []}
+                                                columns={[
+                                                    { title: 'Chi nhánh', dataIndex: 'branchName', key: 'branchName' },
+                                                    { title: 'Nhãn hiệu', dataIndex: 'manufacturer', key: 'manufacturer', render: (v) => v || '-' },
+                                                    { title: 'Số chỗ', dataIndex: 'seats', key: 'seats', render: (v) => v ? `${v} chỗ` : '-' },
+                                                    { title: 'Số lượng', dataIndex: 'proposedQuantity', key: 'proposedQuantity', align: 'center' },
+                                                    {
+                                                        title: 'Đơn giá',
+                                                        dataIndex: 'unitPrice',
+                                                        key: 'unitPrice',
+                                                        align: 'right',
+                                                        render: (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
+                                                    },
+                                                ]}
+                                                pagination={false}
+                                                rowKey="branchId"
+                                                size="small"
+                                                bordered
+                                                locale={{ emptyText: 'Chưa có thông tin xe' }}
+                                            />
+                                        </div>
+                                    </Modal>
+                                )}
+                            </Card>
+                        ),
+                    },
+                ]}
             />
-
-            <Modal
-                title="Lý do từ chối"
-                open={rejectModalOpen}
-                onOk={handleReject}
-                onCancel={() => setRejectModalOpen(false)}
-            >
-                <TextArea
-                    rows={4}
-                    placeholder="Nhập lý do từ chối..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                />
-            </Modal>
-
-            {selectedPlan && (
-                <Modal
-                    title={`Chi tiết đề xuất #${selectedPlan.proposalId}`}
-                    open={detailModalOpen}
-                    onCancel={() => setDetailModalOpen(false)}
-                    width={800}
-                    footer={[
-                        <Button key="close" onClick={() => setDetailModalOpen(false)}>
-                            Đóng
-                        </Button>
-                    ]}
-                >
-                    <div style={{ padding: '10px 0' }}>
-                        <Row gutter={[16, 16]}>
-                            <Col xs={24} sm={12}>
-                                <div><strong>Mô tả:</strong></div>
-                                <p>{selectedPlan.description}</p>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <div><strong>Chi phí dự kiến:</strong></div>
-                                <p style={{ color: 'red', fontWeight: 'bold' }}>
-                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedPlan.proposedCost || 0)}
-                                </p>
-                            </Col>
-                        </Row>
-
-                        <Divider />
-
-                        <h4>Chi tiết cấu hình xe đề nghị mua:</h4>
-                        <Table
-                            dataSource={selectedPlan.branchDetails || []}
-                            columns={[
-                                { title: 'Chi nhánh', dataIndex: 'branchName' },
-                                { title: 'Nhãn hiệu', dataIndex: 'manufacturer', render: (v) => v || '-' },
-                                { title: 'Số chỗ', dataIndex: 'seats', render: (v) => v ? `${v} chỗ` : '-' },
-                                { title: 'Số lượng', dataIndex: 'proposedQuantity', align: 'center' },
-                                {
-                                    title: 'Đơn giá',
-                                    dataIndex: 'unitPrice',
-                                    align: 'right',
-                                    render: (price) =>
-                                        new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price)
-                                },
-                            ]}
-                            pagination={false}
-                            rowKey="branchId"
-                            size="small"
-                            bordered
-                            locale={{ emptyText: 'Chưa có thông tin xe' }}
-                        />
-                    </div>
-                </Modal>
-            )}
-        </Card>
+        </div>
     );
 }
