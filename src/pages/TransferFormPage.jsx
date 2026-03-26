@@ -50,7 +50,8 @@ export default function TransferFormPage() {
         vehicleId: values.vehicleId,
         fromBranchId: values.fromBranchId,
         toBranchId: values.toBranchId,
-        planDate: values.planDate ? values.planDate.format('YYYY-MM-DD') : null,
+        plannedDepartureDate: values.plannedDepartureDate ? values.plannedDepartureDate.format('YYYY-MM-DDTHH:mm:ss') : null,
+        plannedArrivalDate: values.plannedArrivalDate ? values.plannedArrivalDate.format('YYYY-MM-DDTHH:mm:ss') : null,
       });
       message.success('Tạo yêu cầu điều chuyển thành công');
       navigate('/distribution');
@@ -103,12 +104,23 @@ export default function TransferFormPage() {
               />
             </Form.Item>
 
-            <Form.Item name="planDate" label="Ngày kế hoạch" rules={[{ required: true, message: 'Vui lòng chọn ngày kế hoạch' }]}>
+            <Form.Item name="plannedDepartureDate" label="Ngày khởi hành dự kiến" rules={[{ required: true, message: 'Vui lòng chọn ngày khởi hành' }]}>
               <DatePicker
+                showTime={{ format: 'HH:mm' }}
                 style={{ width: '100%' }}
-                format="DD/MM/YYYY"
+                format="DD/MM/YYYY HH:mm"
                 disabledDate={(current) => current && current < dayjs().startOf('day')}
-                placeholder="Chọn ngày kế hoạch"
+                placeholder="Chọn ngày giờ khởi hành"
+              />
+            </Form.Item>
+
+            <Form.Item name="plannedArrivalDate" label="Ngày đến nơi dự kiến" rules={[{ required: true, message: 'Vui lòng chọn ngày đến nơi' }]}>
+              <DatePicker
+                showTime={{ format: 'HH:mm' }}
+                style={{ width: '100%' }}
+                format="DD/MM/YYYY HH:mm"
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+                placeholder="Chọn ngày giờ đến nơi"
               />
             </Form.Item>
           </div>

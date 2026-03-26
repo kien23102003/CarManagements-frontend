@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import distributionApi from '../api/distributionApi';
-import { App, Tabs, Table, Tag, Button, Card, Row, Col, Statistic, Select, Space, Popconfirm } from 'antd';
-import { PlusOutlined, LoginOutlined, LogoutOutlined, StopOutlined, BankOutlined } from '@ant-design/icons';
+import { App, Tabs, Table, Tag, Button, Card, Row, Col, Statistic, Select, Space, Popconfirm, Descriptions } from 'antd';
+import { PlusOutlined, StopOutlined, BankOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const TRANG_THAI = {
@@ -20,6 +20,8 @@ const TRANG_THAI_MAU = {
   Cancelled: 'default',
 };
 
+const fmtDate = (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—';
+
 export default function DistributionPage() {
   const { message } = App.useApp();
   const [tab, setTab] = useState('stock');
@@ -31,8 +33,6 @@ export default function DistributionPage() {
   const navigate = useNavigate();
   const roles = user?.roles || [];
   const isExec = roles.includes('Executive Management');
-  const isOperator = roles.includes('Operator');
-  const userBranchId = user?.branchId;
 
   const loadData = async () => {
     setLoading(true);
@@ -55,7 +55,7 @@ export default function DistributionPage() {
 
   useEffect(() => {
     loadData();
-  }, [tab, statusFilter]);
+  }, [tab, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStatus = async (id, status) => {
     try {
@@ -67,23 +67,36 @@ export default function DistributionPage() {
     }
   };
 
+  // Main columns — keep minimal
   const transferColumns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
     { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '—'}</strong> },
-    { title: 'Từ chi nhánh', dataIndex: 'fromBranchName', key: 'from', render: (v) => v || '—' },
-    { title: 'Đến chi nhánh', dataIndex: 'toBranchName', key: 'to', render: (v) => v || '—' },
     {
-      title: 'Ngày kế hoạch',
-      dataIndex: 'planDate',
-      key: 'date',
+      title: 'Lộ trình',
+      key: 'route',
+      render: (_, t) => `${t.fromBranchName || '—'} → ${t.toBranchName || '—'}`,
+    },
+    {
+      title: 'Khởi hành DK',
+      dataIndex: 'plannedDepartureDate',
+      key: 'departure',
       render: (v, record) => {
         if (!v) return '—';
-        const formatted = dayjs(v).format('DD/MM/YYYY');
-        if (record.status !== 'Pending') return formatted;
-        const today = dayjs().startOf('day');
-        const planDay = dayjs(v).startOf('day');
-        if (planDay.isBefore(today)) return <>{formatted} <Tag color="red">Quá hạn</Tag></>;
-        if (planDay.isSame(today)) return <>{formatted} <Tag color="orange">Hôm nay</Tag></>;
+        const formatted = dayjs(v).format('DD/MM HH:mm');
+        if (record.status === 'Pending' && dayjs().isAfter(dayjs(v)))
+          return <>{formatted} <Tag color="red">Quá hạn</Tag></>;
+        return formatted;
+      },
+    },
+    {
+      title: 'Đến nơi DK',
+      dataIndex: 'plannedArrivalDate',
+      key: 'arrival',
+      render: (v, record) => {
+        if (!v) return '—';
+        const formatted = dayjs(v).format('DD/MM HH:mm');
+        if (record.status === 'InTransit' && dayjs().isAfter(dayjs(v)))
+          return <>{formatted} <Tag color="red">Quá hạn</Tag></>;
         return formatted;
       },
     },
@@ -94,41 +107,11 @@ export default function DistributionPage() {
       render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
     },
     {
-      title: 'Xe ra',
-      dataIndex: 'checkoutDate',
-      key: 'checkout',
-      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
-    },
-    ...(isExec ? [{
-      title: 'Người xác nhận ra', dataIndex: 'checkoutByName', key: 'checkoutBy',
-      render: (v) => v || '—',
-    }] : []),
-    {
-      title: 'Xe vào',
-      dataIndex: 'checkinDate',
-      key: 'checkin',
-      render: (v) => v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '—',
-    },
-    ...(isExec ? [{
-      title: 'Người xác nhận vào', dataIndex: 'checkinByName', key: 'checkinBy',
-      render: (v) => v || '—',
-    }] : []),
-    {
       title: 'Hành động',
       key: 'action',
-      width: 200,
+      width: 100,
       render: (_, t) => (
         <Space>
-          {isOperator && t.status === 'Pending' && t.fromBranchId === userBranchId && (
-            <Popconfirm title="Xác nhận xe rời chi nhánh?" onConfirm={() => handleStatus(t.id, 'Checkout')}>
-              <Button size="small" type="primary" icon={<LogoutOutlined />}>Xe ra</Button>
-            </Popconfirm>
-          )}
-          {isOperator && t.status === 'InTransit' && t.toBranchId === userBranchId && (
-            <Popconfirm title="Xác nhận xe đã đến?" onConfirm={() => handleStatus(t.id, 'Checkin')}>
-              <Button size="small" type="primary" style={{ background: '#22c55e', borderColor: '#22c55e' }} icon={<LoginOutlined />}>Xe vào</Button>
-            </Popconfirm>
-          )}
           {isExec && (t.status === 'Pending' || t.status === 'InTransit') && (
             <Popconfirm title="Huỷ yêu cầu điều chuyển?" onConfirm={() => handleStatus(t.id, 'Cancelled')}>
               <Button size="small" danger icon={<StopOutlined />}>Huỷ</Button>
@@ -138,6 +121,78 @@ export default function DistributionPage() {
       ),
     },
   ];
+
+  // Expandable detail row — styled cards
+  const expandedRowRender = (record) => {
+    const hasCheckout = !!record.checkoutDate;
+    const hasCheckin = !!record.checkinDate;
+
+    const InfoCard = ({ title, color, icon, children }) => (
+      <div style={{
+        flex: 1, minWidth: 220, background: '#fff', borderRadius: 10,
+        border: `1px solid ${color}22`, overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '8px 14px', background: `${color}0d`,
+          borderBottom: `1px solid ${color}22`, fontWeight: 600, fontSize: 13, color,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          {icon} {title}
+        </div>
+        <div style={{ padding: '10px 14px', fontSize: 13, lineHeight: 1.8 }}>
+          {children}
+        </div>
+      </div>
+    );
+
+    const Row = ({ label, value, highlight }) => (
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ color: '#8c8c8c' }}>{label}</span>
+        <span style={{ fontWeight: highlight ? 600 : 400, color: highlight ? '#cf1322' : '#262626', textAlign: 'right' }}>
+          {value || '—'}
+        </span>
+      </div>
+    );
+
+    return (
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '4px 0' }}>
+        {/* Timeline */}
+        <InfoCard title="Lịch trình" color="#1677ff" >
+          <Row label="Khởi hành dự kiến" value={fmtDate(record.plannedDepartureDate)} />
+          <Row label="Đến nơi dự kiến" value={fmtDate(record.plannedArrivalDate)} />
+          <Row label="Người tạo" value={record.managerName} />
+          <Row label="Ngày tạo" value={fmtDate(record.createdAt)} />
+        </InfoCard>
+
+        {/* Checkout */}
+        <InfoCard title="Xe ra (Checkout)" color={hasCheckout ? '#52c41a' : '#bfbfbf'}>
+          <Row label="Thời gian" value={fmtDate(record.checkoutDate)} />
+          {isExec && <Row label="Người xác nhận" value={record.checkoutByName} />}
+          {record.checkoutNote && (
+            <div style={{ marginTop: 6, padding: '6px 10px', background: '#fff1f0', borderRadius: 6, border: '1px solid #ffa39e' }}>
+              <span style={{ fontSize: 12, color: '#cf1322' }}>⚠ Lý do trễ: </span>
+              <span style={{ fontSize: 12, color: '#434343' }}>{record.checkoutNote}</span>
+            </div>
+          )}
+          {!hasCheckout && <span style={{ color: '#bfbfbf', fontSize: 12 }}>Chưa thực hiện</span>}
+        </InfoCard>
+
+        {/* Checkin */}
+        <InfoCard title="Xe vào (Checkin)" color={hasCheckin ? '#52c41a' : '#bfbfbf'} >
+          <Row label="Thời gian" value={fmtDate(record.checkinDate)} />
+          {isExec && <Row label="Người xác nhận" value={record.checkinByName} />}
+          {record.checkinNote && (
+            <div style={{ marginTop: 6, padding: '6px 10px', background: '#fff1f0', borderRadius: 6, border: '1px solid #ffa39e' }}>
+              <span style={{ fontSize: 12, color: '#cf1322' }}>⚠ Lý do trễ: </span>
+              <span style={{ fontSize: 12, color: '#434343' }}>{record.checkinNote}</span>
+            </div>
+          )}
+          {!hasCheckin && <span style={{ color: '#bfbfbf', fontSize: 12 }}>Chưa thực hiện</span>}
+          {record.executedDate && <Row label="Ngày hoàn thành" value={record.executedDate} />}
+        </InfoCard>
+      </div>
+    );
+  };
 
   const tabItems = [
     {
@@ -186,6 +241,10 @@ export default function DistributionPage() {
             loading={loading}
             size="middle"
             pagination={{ pageSize: 10, showSizeChanger: true }}
+            expandable={{
+              expandedRowRender,
+              rowExpandable: () => true,
+            }}
           />
         </div>
       ),

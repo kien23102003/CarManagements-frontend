@@ -32,6 +32,16 @@ export const startTrip = async (data) => {
 };
 
 export const endTrip = async (tripId, data) => {
-  const res = await axiosClient.post(`/trips/end/${tripId}`, data);
+  const res = await axiosClient.put(`/trips/${tripId}/end`, data);
+  return res.data;
+};
+
+export const getPendingTransfers = async () => {
+  const res = await axiosClient.get("/trips/pending-transfers");
+  return res.data;
+};
+
+export const getInTransitTransfers = async () => {
+  const res = await axiosClient.get("/trips/intransit-transfers");
   return res.data;
 };

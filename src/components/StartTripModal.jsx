@@ -1,76 +1,42 @@
-import { useEffect, useMemo, useState } from "react"
-import { Form, Input, InputNumber, Modal, Select, Typography } from "antd"
-import { getTripHistoryByVehicle, startTrip } from "../services/tripLogService"
+import { useMemo, useState } from "react"
+import { Alert, Input, Modal, Typography } from "antd"
+import { startTrip } from "../services/tripLogService"
 
 const { Text } = Typography
 
-export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
-    const [form] = Form.useForm()
+const formatDateTime = (value) => {
+    if (!value) return "--"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "--"
+    return date.toLocaleString("vi-VN")
+}
+
+export default function StartTripModal({ open, onCancel, onSuccess, transfer }) {
     const [loading, setLoading] = useState(false)
-    const [minStartMileage, setMinStartMileage] = useState(null)
+    const [note, setNote] = useState("")
 
-    const driverOptions = useMemo(() => {
-        if (!vehicle?.currentDriverId) return []
-        return [{
-            label: vehicle.currentDriverName || `Tài xế #${vehicle.currentDriverId}`,
-            value: vehicle.currentDriverId,
-        }]
-    }, [vehicle])
+    const isLate = useMemo(() => {
+        if (!transfer?.plannedDepartureDate) return false
+        return new Date() > new Date(transfer.plannedDepartureDate)
+    }, [transfer, open])
 
-    useEffect(() => {
-        form.setFieldsValue({
-            driverId: vehicle?.currentDriverId || undefined,
-        })
-        setMinStartMileage(null)
-    }, [form, vehicle])
-
-    useEffect(() => {
-        const loadHistory = async () => {
-            if (!open || !vehicle?.vehicleId) return
-            try {
-                const data = await getTripHistoryByVehicle(vehicle.vehicleId)
-                const trips = data?.trips || []
-                const currentDriverId = vehicle?.currentDriverId
-                if (currentDriverId) {
-                    const lastCompletedByDriver = trips
-                        .filter((t) => t?.endTime && t?.driverId === currentDriverId)
-                        .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0]
-
-                    if (lastCompletedByDriver?.endMileage != null) {
-                        setMinStartMileage(Number(lastCompletedByDriver.endMileage))
-                    }
-                }
-            } catch (error) {
-                setMinStartMileage(null)
-            } finally {
-            }
+    const handleOk = async () => {
+        if (!transfer?.transferPlanId) return
+        if (isLate && !note.trim()) {
+            Modal.warning({ title: "Vui lòng nhập lý do trễ", content: "Bắt đầu chuyến đã quá thời gian dự kiến. Bắt buộc nhập lý do giải trình." })
+            return
         }
-
-        loadHistory()
-    }, [open, vehicle, form])
-
-    const handleFinish = async (values) => {
-        if (!vehicle?.vehicleId) return
         setLoading(true)
         try {
-            const payload = {
-                vehicleId: vehicle.vehicleId,
-                driverId: values.driverId,
-                startMileage: values.startMileage,
-                origin: values.origin,
-                destination: values.destination,
-                purpose: values.purpose || "",
-            }
-
-            await startTrip(payload)
-            form.resetFields()
+            await startTrip({
+                transferPlanId: transfer.transferPlanId,
+                note: isLate ? note.trim() : null,
+            })
+            setNote("")
             onSuccess?.()
         } catch (error) {
             const message = error?.response?.data?.message || "Không thể bắt đầu chuyến."
-            Modal.error({
-                title: "Bắt đầu chuyến thất bại",
-                content: message,
-            })
+            Modal.error({ title: "Bắt đầu chuyến thất bại", content: message })
         } finally {
             setLoading(false)
         }
@@ -79,84 +45,69 @@ export default function StartTripModal({ open, onCancel, onSuccess, vehicle }) {
     return (
         <Modal
             open={open}
-            onCancel={onCancel}
-            onOk={() => form.submit()}
-            okText="Bắt đầu chuyến"
+            onCancel={() => { setNote(""); onCancel?.() }}
+            onOk={handleOk}
+            okText="Xác nhận bắt đầu chuyến"
             cancelText="Hủy"
             confirmLoading={loading}
-            okButtonProps={{ disabled: !vehicle?.vehicleId || driverOptions.length === 0 }}
-            title="Tạo chuyến mới"
+            okButtonProps={{ disabled: !transfer?.transferPlanId }}
+            title="Xác nhận bắt đầu chuyến điều chuyển"
             destroyOnClose
         >
-            <div style={{ marginBottom: 16 }}>
-                <Text strong>{vehicle?.licensePlate || "Xe chưa chọn"}</Text>
-                <div style={{ color: "#64748b", fontSize: 12 }}>
-                    {vehicle?.currentBranchName || "Chưa có chi nhánh"} · {vehicle?.status || "Chưa có trạng thái"}
+            <div style={{ padding: 16, background: "#f6f8fa", borderRadius: 8 }}>
+                <div style={{ marginBottom: 10 }}>
+                    <Text strong>Biển số: </Text>
+                    <Text>{transfer?.licensePlate || "--"}</Text>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                    <Text strong>Tài xế: </Text>
+                    <Text>{transfer?.driverName || "Chưa có tài xế"}</Text>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                    <Text strong>Lộ trình: </Text>
+                    <Text>{transfer?.fromBranchName || "--"} → {transfer?.toBranchName || "--"}</Text>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                    <Text strong>Số km hiện tại: </Text>
+                    <Text>{transfer?.currentMileage != null ? `${transfer.currentMileage} km` : "--"}</Text>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                    <Text strong>Khởi hành dự kiến: </Text>
+                    <Text>{formatDateTime(transfer?.plannedDepartureDate)}</Text>
+                </div>
+                <div>
+                    <Text strong>Đến nơi dự kiến: </Text>
+                    <Text>{formatDateTime(transfer?.plannedArrivalDate)}</Text>
                 </div>
             </div>
 
-            <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleFinish}
-                initialValues={{
-                    driverId: vehicle?.currentDriverId || undefined,
-                }}
-            >
-                <Form.Item
-                    label="Tài xế"
-                    name="driverId"
-                    rules={[{ required: true, message: "Vui lòng chọn tài xế" }]}
-                >
-                    <Select
-                        placeholder={driverOptions.length ? "Chọn tài xế" : "Xe chưa có tài xế"}
-                        options={driverOptions}
-                        disabled={driverOptions.length === 0}
-                        showSearch
-                        optionFilterProp="label"
+            {isLate && (
+                <>
+                    <Alert
+                        type="error"
+                        message="Đã quá thời gian khởi hành dự kiến!"
+                        description="Bạn cần nhập lý do giải trình bên dưới."
+                        showIcon
+                        style={{ marginTop: 16 }}
                     />
-                </Form.Item>
+                    <div style={{ marginTop: 12 }}>
+                        <Text strong>Lý do trễ <span style={{ color: "red" }}>*</span></Text>
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="Nhập lý do trễ khởi hành..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            style={{ marginTop: 6 }}
+                        />
+                    </div>
+                </>
+            )}
 
-                <Form.Item
-                    label="Số km bắt đầu"
-                    name="startMileage"
-                    rules={[
-                        { required: true, message: "Vui lòng nhập số km bắt đầu" },
-                        () => ({
-                            validator(_, value) {
-                                if (value == null || value === "") return Promise.resolve()
-                                if (minStartMileage != null && Number(value) < minStartMileage) {
-                                    return Promise.reject(new Error("Số km bắt đầu phải lớn hơn hoặc bằng km kết thúc chuyến trước của tài xế"))
-                                }
-                                return Promise.resolve()
-                            },
-                        }),
-                    ]}
-                    extra={minStartMileage != null ? `Km tối thiểu: ${minStartMileage}` : undefined}
-                >
-                    <InputNumber min={1} style={{ width: "100%" }} placeholder="Nhập số km" />
-                </Form.Item>
-
-                <Form.Item
-                    label="Điểm đi"
-                    name="origin"
-                    rules={[{ required: true, message: "Vui lòng nhập điểm đi" }]}
-                >
-                    <Input placeholder="Ví dụ: Hà Nội" />
-                </Form.Item>
-
-                <Form.Item
-                    label="Điểm đến"
-                    name="destination"
-                    rules={[{ required: true, message: "Vui lòng nhập điểm đến" }]}
-                >
-                    <Input placeholder="Ví dụ: Hồ Chí Minh" />
-                </Form.Item>
-
-                <Form.Item label="Mục đích" name="purpose">
-                    <Input placeholder="Tuỳ chọn" />
-                </Form.Item>
-            </Form>
+            {!isLate && (
+                <div style={{ marginTop: 12, color: "#64748b", fontSize: 13 }}>
+                    Số km bắt đầu sẽ được lấy tự động từ thông tin xe.
+                </div>
+            )}
         </Modal>
     )
 }

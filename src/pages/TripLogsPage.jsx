@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
-import { Badge, Button, Descriptions, Empty, Select, Space, Spin, Table, Tabs, Tag, Typography } from "antd"
+import { Badge, Button, Empty, Select, Spin, Table, Tabs, Tag, Typography } from "antd"
 import toast from "react-hot-toast"
 import StartTripModal from "../components/StartTripModal"
 import EndTripModal from "../components/EndTripModal"
-import { getManageVehicles, getTripHistoryByVehicle } from "../services/tripLogService"
+import { getManageVehicles, getTripHistoryByVehicle, getPendingTransfers, getInTransitTransfers } from "../services/tripLogService"
 import "../styles/tripLogs.css"
 
 const { Title, Text } = Typography
@@ -15,22 +15,13 @@ const formatDateTime = (value) => {
     return date.toLocaleString("vi-VN")
 }
 
-const formatDuration = (start) => {
-    if (!start) return "--"
-    const diffMs = Date.now() - new Date(start).getTime()
-    if (diffMs <= 0) return "0 phút"
-    const hours = Math.floor(diffMs / (1000 * 60 * 60))
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-    if (hours === 0) return `${minutes} phút`
-    return `${hours} giờ ${minutes} phút`
-}
-
 export default function TripLogsPage() {
     const [activeMainTab, setActiveMainTab] = useState("manage")
-    const [manageTab, setManageTab] = useState("all")
-    const [manageVehicles, setManageVehicles] = useState([])
-    const [allVehicles, setAllVehicles] = useState([])
+    const [manageTab, setManageTab] = useState("pending")
+    const [pendingTransfers, setPendingTransfers] = useState([])
+    const [inTransitTransfers, setInTransitTransfers] = useState([])
     const [manageLoading, setManageLoading] = useState(false)
+    const [allVehicles, setAllVehicles] = useState([])
 
     const [historyVehicleId, setHistoryVehicleId] = useState(null)
     const [historyData, setHistoryData] = useState(null)
@@ -38,26 +29,48 @@ export default function TripLogsPage() {
 
     const [startModalOpen, setStartModalOpen] = useState(false)
     const [endModalOpen, setEndModalOpen] = useState(false)
-    const [selectedVehicle, setSelectedVehicle] = useState(null)
+    const [selectedTransfer, setSelectedTransfer] = useState(null)
     const [selectedTrip, setSelectedTrip] = useState(null)
-    const [selectedOverDuration, setSelectedOverDuration] = useState(false)
     const [selectedStartMileage, setSelectedStartMileage] = useState(null)
+    const [selectedPlannedArrivalDate, setSelectedPlannedArrivalDate] = useState(null)
 
-    const loadManageVehicles = async (tabKey) => {
+    const loadPendingTransfers = async () => {
         setManageLoading(true)
         try {
-            const res = await getManageVehicles(tabKey)
+            const res = await getPendingTransfers()
             const list = res?.data ?? res ?? []
-            setManageVehicles(Array.isArray(list) ? list : [])
-            if (tabKey === "all") {
-                setAllVehicles(Array.isArray(list) ? list : [])
-            }
+            setPendingTransfers(Array.isArray(list) ? list : [])
         } catch (error) {
-            console.error("Failed to load manage vehicles", error)
-            toast.error("Không thể tải danh sách vận hành.")
-            setManageVehicles([])
+            console.error("Failed to load pending transfers", error)
+            toast.error("Không thể tải danh sách chờ điều chuyển.")
+            setPendingTransfers([])
         } finally {
             setManageLoading(false)
+        }
+    }
+
+    const loadInTransitTransfers = async () => {
+        setManageLoading(true)
+        try {
+            const res = await getInTransitTransfers()
+            const list = res?.data ?? res ?? []
+            setInTransitTransfers(Array.isArray(list) ? list : [])
+        } catch (error) {
+            console.error("Failed to load in-transit transfers", error)
+            toast.error("Không thể tải danh sách đang di chuyển.")
+            setInTransitTransfers([])
+        } finally {
+            setManageLoading(false)
+        }
+    }
+
+    const loadAllVehicles = async () => {
+        try {
+            const res = await getManageVehicles("all")
+            const list = res?.data ?? res ?? []
+            setAllVehicles(Array.isArray(list) ? list : [])
+        } catch {
+            setAllVehicles([])
         }
     }
 
@@ -78,104 +91,137 @@ export default function TripLogsPage() {
     }
 
     useEffect(() => {
-        loadManageVehicles(manageTab)
+        if (manageTab === "pending") {
+            loadPendingTransfers()
+        } else if (manageTab === "moving") {
+            loadInTransitTransfers()
+        }
     }, [manageTab])
 
-    const handleViewHistory = (vehicle) => {
-        const id = vehicle?.vehicleId
-        if (!id) return
-        setHistoryVehicleId(id)
-        setActiveMainTab("history")
-        loadTripHistory(id)
-    }
+    useEffect(() => {
+        loadAllVehicles()
+    }, [])
 
-    const handleStartTrip = (vehicle) => {
-        setSelectedVehicle(vehicle)
+    const handleStartTrip = (transfer) => {
+        setSelectedTransfer(transfer)
         setStartModalOpen(true)
     }
 
-    const handleEndTrip = (vehicle) => {
-        setSelectedTrip(vehicle?.currentTripId)
-        setSelectedOverDuration(Boolean(vehicle?.isOverDuration))
-        setSelectedStartMileage(vehicle?.currentTripStartMileage ?? null)
+    const handleEndTrip = (transfer) => {
+        setSelectedTrip(transfer?.tripId)
+        setSelectedStartMileage(transfer?.currentMileage ?? null)
+        setSelectedPlannedArrivalDate(transfer?.plannedArrivalDate ?? null)
         setEndModalOpen(true)
     }
 
-    const manageColumns = [
+    // Columns for pending transfers tab
+    const pendingColumns = [
         {
             title: "Biển số",
             dataIndex: "licensePlate",
             key: "licensePlate",
-            render: (_, record) => (
-                <Button type="link" onClick={() => handleViewHistory(record)}>
-                    {record.licensePlate || `Xe #${record.vehicleId}`}
-                </Button>
-            ),
-        },
-        {
-            title: "Trạng thái",
-            dataIndex: "status",
-            key: "status",
-            render: (value, record) => {
-                const normalized = String(value || "").toLowerCase()
-                const isReady = normalized.includes("ready")
-                const isMoving = normalized.includes("moving") || record.isMoving
-                return (
-                    <Tag color={isReady ? "green" : isMoving ? "blue" : "default"}>
-                        {value || "Không rõ"}
-                    </Tag>
-                )
-            },
-        },
-        {
-            title: "Tài xế",
-            dataIndex: "currentDriverName",
-            key: "currentDriverName",
-            render: (_, record) => record.currentDriverName || (record.currentDriverId ? `Tài xế #${record.currentDriverId}` : "--"),
-        },
-        {
-            title: "Chi nhánh",
-            dataIndex: "currentBranchName",
-            key: "currentBranchName",
             render: (value) => value || "--",
         },
         {
-            title: "Chuyến đang chạy",
-            key: "currentTrip",
+            title: "Tài xế",
+            dataIndex: "driverName",
+            key: "driverName",
+            render: (value) => value || "Chưa có",
+        },
+        {
+            title: "Lộ trình",
+            key: "route",
             render: (_, record) => (
-                record.currentTripId ? (
-                    <div>
-                        <div>{record.currentTripOrigin || "--"} → {record.currentTripDestination || "--"}</div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                            Bắt đầu: {formatDateTime(record.currentTripStartTime)} · {formatDuration(record.currentTripStartTime)}
-                        </Text>
-                    </div>
-                ) : "--"
+                <span>
+                    {record.fromBranchName || "--"} → {record.toBranchName || "--"}
+                </span>
             ),
         },
         {
-            title: "Cảnh báo",
-            key: "warning",
+            title: "Khởi hành dự kiến",
+            dataIndex: "plannedDepartureDate",
+            key: "plannedDepartureDate",
+            render: (value) => formatDateTime(value),
+        },
+        {
+            title: "Đến nơi dự kiến",
+            dataIndex: "plannedArrivalDate",
+            key: "plannedArrivalDate",
+            render: (value) => formatDateTime(value),
+        },
+        {
+            title: "Vai trò",
+            key: "role",
             render: (_, record) => (
-                record.isOverDuration ? <Badge color="red" text="Quá thời gian" /> : "--"
+                <Tag color={record.isSourceBranch ? "blue" : "orange"}>
+                    {record.isSourceBranch ? "Chi nhánh gốc" : "Chi nhánh đích"}
+                </Tag>
             ),
         },
         {
             title: "Thao tác",
             key: "actions",
             render: (_, record) => (
-                <Space>
-                    {manageTab === "ready" && (
-                        <Button type="primary" onClick={() => handleStartTrip(record)}>
-                            Bắt đầu chuyến
-                        </Button>
-                    )}
-                    {manageTab === "moving" && (
-                        <Button danger onClick={() => handleEndTrip(record)}>
-                            Kết thúc chuyến
-                        </Button>
-                    )}
-                </Space>
+                record.isSourceBranch ? (
+                    <Button type="primary" onClick={() => handleStartTrip(record)}>
+                        Bắt đầu chuyến
+                    </Button>
+                ) : (
+                    <Text type="secondary">Chờ chi nhánh gốc</Text>
+                )
+            ),
+        },
+    ]
+
+    // Columns for in-transit tab
+    const inTransitColumns = [
+        {
+            title: "Biển số",
+            dataIndex: "licensePlate",
+            key: "licensePlate",
+            render: (value) => value || "--",
+        },
+        {
+            title: "Tài xế",
+            dataIndex: "driverName",
+            key: "driverName",
+            render: (value) => value || "--",
+        },
+        {
+            title: "Lộ trình",
+            key: "route",
+            render: (_, record) => (
+                <span>
+                    {record.fromBranchName || "--"} → {record.toBranchName || "--"}
+                </span>
+            ),
+        },
+        {
+            title: "Km bắt đầu",
+            dataIndex: "currentMileage",
+            key: "currentMileage",
+            render: (value) => value != null ? `${value} km` : "--",
+        },
+        {
+            title: "Vai trò",
+            key: "role",
+            render: (_, record) => (
+                <Tag color={record.isSourceBranch ? "blue" : "orange"}>
+                    {record.isSourceBranch ? "Chi nhánh gốc" : "Chi nhánh đích"}
+                </Tag>
+            ),
+        },
+        {
+            title: "Thao tác",
+            key: "actions",
+            render: (_, record) => (
+                !record.isSourceBranch ? (
+                    <Button danger onClick={() => handleEndTrip(record)}>
+                        Kết thúc chuyến
+                    </Button>
+                ) : (
+                    <Text type="secondary">Chờ chi nhánh đích</Text>
+                )
             ),
         },
     ]
@@ -215,22 +261,23 @@ export default function TripLogsPage() {
             render: (_, record) => `${record.startMileage ?? "--"} → ${record.endMileage ?? "--"}`,
         },
         {
-            title: "Mục đích",
-            dataIndex: "purpose",
-            key: "purpose",
-            render: (value) => value || "--",
+            title: "Điều chuyển",
+            key: "transfer",
+            render: (_, record) => {
+                if (!record.fromBranchName && !record.toBranchName) return "--"
+                return `${record.fromBranchName || "--"} → ${record.toBranchName || "--"}`
+            },
         },
     ]
 
     const historyTrips = historyData?.trips || []
-    const vehiclesForSelect = allVehicles.length ? allVehicles : manageVehicles
 
     return (
         <div className="trip-module">
             <div className="trip-header">
                 <div>
-                    <Title level={3}>Quản lý vận hành chuyến đi</Title>
-                    <Text type="secondary">Theo dõi trạng thái xe, vận hành và lịch sử chuyến đi.</Text>
+                    <Title level={3}>Quản lý vận hành điều chuyển</Title>
+                    <Text type="secondary">Theo dõi và vận hành chuyến xe điều chuyển giữa các chi nhánh.</Text>
                 </div>
             </div>
 
@@ -247,20 +294,30 @@ export default function TripLogsPage() {
                                     activeKey={manageTab}
                                     onChange={setManageTab}
                                     items={[
-                                        { key: "all", label: "Tất cả" },
-                                        { key: "ready", label: "Sẵn sàng" },
-                                        { key: "moving", label: "Đang di chuyển" },
+                                        { key: "pending", label: `Chờ điều chuyển (${pendingTransfers.length})` },
+                                        { key: "moving", label: `Đang di chuyển (${inTransitTransfers.length})` },
                                     ]}
                                 />
 
-                                <Table
-                                    rowKey={(record) => record.vehicleId}
-                                    columns={manageColumns}
-                                    dataSource={manageVehicles}
-                                    loading={manageLoading}
-                                    locale={{ emptyText: manageLoading ? <Spin /> : <Empty description="Không có dữ liệu" /> }}
-                                    pagination={{ pageSize: 10 }}
-                                />
+                                {manageTab === "pending" ? (
+                                    <Table
+                                        rowKey={(record) => record.transferPlanId}
+                                        columns={pendingColumns}
+                                        dataSource={pendingTransfers}
+                                        loading={manageLoading}
+                                        locale={{ emptyText: manageLoading ? <Spin /> : <Empty description="Không có kế hoạch điều chuyển nào đang chờ" /> }}
+                                        pagination={{ pageSize: 10 }}
+                                    />
+                                ) : (
+                                    <Table
+                                        rowKey={(record) => record.transferPlanId}
+                                        columns={inTransitColumns}
+                                        dataSource={inTransitTransfers}
+                                        loading={manageLoading}
+                                        locale={{ emptyText: manageLoading ? <Spin /> : <Empty description="Không có xe đang di chuyển" /> }}
+                                        pagination={{ pageSize: 10 }}
+                                    />
+                                )}
                             </div>
                         ),
                     },
@@ -279,7 +336,7 @@ export default function TripLogsPage() {
                                             setHistoryVehicleId(value)
                                             loadTripHistory(value)
                                         }}
-                                        options={vehiclesForSelect.map((vehicle) => ({
+                                        options={allVehicles.map((vehicle) => ({
                                             label: vehicle.licensePlate || `Xe #${vehicle.vehicleId}`,
                                             value: vehicle.vehicleId,
                                         }))}
@@ -336,25 +393,25 @@ export default function TripLogsPage() {
 
             <StartTripModal
                 open={startModalOpen}
-                vehicle={selectedVehicle}
+                transfer={selectedTransfer}
                 onCancel={() => setStartModalOpen(false)}
                 onSuccess={() => {
                     setStartModalOpen(false)
-                    loadManageVehicles(manageTab)
-                    toast.success("Bắt đầu chuyến thành công.")
+                    loadPendingTransfers()
+                    toast.success("Bắt đầu chuyến điều chuyển thành công.")
                 }}
             />
 
             <EndTripModal
                 open={endModalOpen}
                 tripId={selectedTrip}
-                isOverDuration={selectedOverDuration}
                 startMileage={selectedStartMileage}
+                plannedArrivalDate={selectedPlannedArrivalDate}
                 onCancel={() => setEndModalOpen(false)}
                 onSuccess={() => {
                     setEndModalOpen(false)
-                    loadManageVehicles(manageTab)
-                    toast.success("Kết thúc chuyến thành công.")
+                    loadInTransitTransfers()
+                    toast.success("Kết thúc chuyến thành công. Xe đã được chuyển chi nhánh.")
                 }}
             />
         </div>
