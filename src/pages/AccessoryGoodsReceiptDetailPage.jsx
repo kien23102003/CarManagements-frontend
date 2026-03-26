@@ -8,6 +8,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Select,
   Space,
   Table,
   Tag,
@@ -19,6 +20,8 @@ import {
   GOODS_RECEIPT_STATUS_META,
   PURCHASE_REQUEST_STATUS_META,
   canReadAccessoryModule,
+  STOCK_CONDITION_META,
+  STOCK_CONDITION_OPTIONS,
   unwrapData,
 } from '../services/accessoryHelpers';
 
@@ -63,6 +66,7 @@ export default function AccessoryGoodsReceiptDetailPage() {
               accessoryId: item.accessoryId,
               receivedQuantity: Math.max((item.approvedQuantity ?? 0) - (item.receivedQuantity ?? 0), 0),
               actualUnitPrice: item.estimatedUnitPrice,
+              stockCondition: 'NEW',
             }));
 
           setPurchaseRequest(payload);
@@ -84,6 +88,7 @@ export default function AccessoryGoodsReceiptDetailPage() {
               accessoryId: item.accessoryId,
               receivedQuantity: item.receivedQuantity,
               actualUnitPrice: item.actualUnitPrice,
+              stockCondition: item.stockCondition || 'NEW',
             })),
           });
         }
@@ -117,24 +122,27 @@ export default function AccessoryGoodsReceiptDetailPage() {
         accessoryId: item.accessoryId,
         receivedQuantity: item.receivedQuantity,
         actualUnitPrice: item.actualUnitPrice,
+        stockCondition: item.stockCondition || 'NEW',
       })),
     });
   };
 
+  const toPayload = (values) => ({
+    purchaseRequestId: Number(values.purchaseRequestId),
+    branchId: Number(values.branchId),
+    notes: values.notes,
+    details: (values.details || []).map((item) => ({
+      accessoryId: item.accessoryId,
+      receivedQuantity: item.receivedQuantity,
+      actualUnitPrice: item.actualUnitPrice ?? null,
+      stockCondition: item.stockCondition,
+    })),
+  });
+
   const handleCreate = async (values) => {
     setSaving(true);
     try {
-      const payload = {
-        purchaseRequestId: Number(values.purchaseRequestId),
-        branchId: Number(values.branchId),
-        notes: values.notes,
-        details: (values.details || []).map((item) => ({
-          accessoryId: item.accessoryId,
-          receivedQuantity: item.receivedQuantity,
-          actualUnitPrice: item.actualUnitPrice ?? null,
-        })),
-      };
-      const { data } = await accessoryApi.createGoodsReceipt(payload);
+      const { data } = await accessoryApi.createGoodsReceipt(toPayload(values));
       const created = unwrapData(data);
       message.success('Tạo phiếu nhập thành công');
       navigate(`/accessory-goods-receipts/${created.id}`);
@@ -151,11 +159,7 @@ export default function AccessoryGoodsReceiptDetailPage() {
       setSaving(true);
       await accessoryApi.completeGoodsReceipt(id, {
         notes: values.notes,
-        details: (values.details || []).map((item) => ({
-          accessoryId: item.accessoryId,
-          receivedQuantity: item.receivedQuantity,
-          actualUnitPrice: item.actualUnitPrice ?? null,
-        })),
+        details: toPayload(values).details,
       });
       message.success('Hoàn tất nhập hàng thành công');
       await refreshDetail();
@@ -264,14 +268,13 @@ export default function AccessoryGoodsReceiptDetailPage() {
 
                   return (
                     <Card key={field.key} size="small" title={item?.accessoryName || `Phụ kiện #${accessoryId}`} style={{ marginBottom: 12 }}>
-                      <Form.Item key={`hidden-${field.key}`} name={[field.name, 'accessoryId']} hidden>
+                      <Form.Item name={[field.name, 'accessoryId']} hidden>
                         <InputNumber />
                       </Form.Item>
                       <Form.Item label="Mã phụ kiện">
                         <Input value={item?.accessoryCode || accessoryId} disabled />
                       </Form.Item>
                       <Form.Item
-                        key={`received-${field.key}`}
                         name={[field.name, 'receivedQuantity']}
                         label="Số lượng thực nhận"
                         rules={[
@@ -281,7 +284,14 @@ export default function AccessoryGoodsReceiptDetailPage() {
                       >
                         <InputNumber min={1} style={{ width: '100%' }} disabled={!editable} />
                       </Form.Item>
-                      <Form.Item key={`price-${field.key}`} name={[field.name, 'actualUnitPrice']} label="Đơn giá thực tế">
+                      <Form.Item
+                        name={[field.name, 'stockCondition']}
+                        label="Tình trạng nhập kho"
+                        rules={[{ required: true, message: 'Vui lòng chọn tình trạng nhập kho' }]}
+                      >
+                        <Select disabled={!editable} options={STOCK_CONDITION_OPTIONS} />
+                      </Form.Item>
+                      <Form.Item name={[field.name, 'actualUnitPrice']} label="Đơn giá thực tế">
                         <InputNumber min={0} style={{ width: '100%' }} disabled={!editable} />
                       </Form.Item>
                     </Card>
@@ -312,6 +322,16 @@ export default function AccessoryGoodsReceiptDetailPage() {
               { title: 'Phụ kiện', dataIndex: 'accessoryName', key: 'accessoryName' },
               { title: 'Mã', dataIndex: 'accessoryCode', key: 'accessoryCode', width: 120 },
               { title: 'Số lượng nhận', dataIndex: 'receivedQuantity', key: 'receivedQuantity', width: 120 },
+              {
+                title: 'Tình trạng kho',
+                dataIndex: 'stockCondition',
+                key: 'stockCondition',
+                width: 180,
+                render: (value) => {
+                  const meta = STOCK_CONDITION_META[value] || { label: value, color: 'default' };
+                  return <Tag color={meta.color}>{meta.label}</Tag>;
+                },
+              },
               { title: 'Đơn giá thực tế', dataIndex: 'actualUnitPrice', key: 'actualUnitPrice', width: 140, render: (value) => value ?? '-' },
             ]}
           />

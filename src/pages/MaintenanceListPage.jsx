@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import maintenanceApi from '../api/maintenanceApi';
 import { Table, Tag, Button, Select, Space, Popconfirm, Modal, Form, Input, message } from 'antd';
-import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
   Pending: 'Chờ duyệt',
@@ -131,6 +131,16 @@ export default function MaintenanceListPage() {
     } catch (err) { message.error(err.response?.data?.message || 'Có lỗi'); }
   };
 
+  const handleStart = async (id) => {
+    try {
+      await maintenanceApi.update(id, { status: 'InProgress' });
+      message.success('Đã bắt đầu sửa chữa');
+      loadData();
+    } catch (err) {
+      message.error(err.response?.data?.message || 'Có lỗi');
+    }
+  };
+
   const columns = [
     { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}`, width: 60 },
     {
@@ -165,8 +175,13 @@ export default function MaintenanceListPage() {
             <Button size="small" onClick={() => navigate(`/maintenance/${m.id}`)}>Sửa</Button>
           )}
           {isOperator && m.status === 'Approved' && (
-            <Popconfirm title="Xác nhận hoàn thành bảo trì?" onConfirm={() => handleComplete(m.id)}>
-              <Button size="small" type="primary" icon={<PlayCircleOutlined />}>Thực hiện</Button>
+            <Popconfirm title="Xác nhận bắt đầu sửa chữa?" onConfirm={() => handleStart(m.id)}>
+              <Button size="small" type="primary">Bắt đầu sửa</Button>
+            </Popconfirm>
+          )}
+          {isOperator && m.status === 'InProgress' && (
+            <Popconfirm title="Xác nhận đã sửa xong? Xe sẽ chuyển về trạng thái hoạt động." onConfirm={() => handleComplete(m.id)}>
+              <Button size="small" type="primary" icon={<CheckOutlined />}>Xác nhận hoàn thành</Button>
             </Popconfirm>
           )}
           {isManager && m.status === 'Pending' && (

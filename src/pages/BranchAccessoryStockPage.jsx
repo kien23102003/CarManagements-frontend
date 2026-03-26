@@ -8,6 +8,8 @@ import {
   canManageBranchStock,
   canReadAccessoryModule,
   canViewAccessoryAcrossBranches,
+  STOCK_CONDITION_META,
+  STOCK_CONDITION_OPTIONS,
   unwrapData,
 } from '../services/accessoryHelpers';
 
@@ -33,6 +35,19 @@ export default function BranchAccessoryStockPage() {
   const [editingItem, setEditingItem] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const { data } = await accessoryApi.getBranchStocks(filters);
+      setItems(unwrapData(data));
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể tải tồn kho chi nhánh');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const loadBranches = async () => {
       try {
@@ -51,19 +66,6 @@ export default function BranchAccessoryStockPage() {
       return;
     }
 
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const { data } = await accessoryApi.getBranchStocks(filters);
-        setItems(unwrapData(data));
-      } catch (error) {
-        message.error(error.response?.data?.message || 'Không thể tải tồn kho chi nhánh');
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
   }, [filters, message, readable]);
 
@@ -74,6 +76,7 @@ export default function BranchAccessoryStockPage() {
     form.setFieldsValue({
       branchId: record.branchId,
       accessoryId: record.accessoryId,
+      stockCondition: record.stockCondition,
       quantityInStock: record.quantityInStock,
       minimumStock: record.minimumStock,
     });
@@ -86,8 +89,7 @@ export default function BranchAccessoryStockPage() {
       await accessoryApi.upsertBranchStock(values);
       message.success('Cập nhật tồn kho chi nhánh thành công');
       setEditingItem(null);
-      const { data } = await accessoryApi.getBranchStocks(filters);
-      setItems(unwrapData(data));
+      await loadData();
     } catch (error) {
       if (!error?.errorFields) {
         message.error(error.response?.data?.message || 'Không thể cập nhật tồn kho');
@@ -101,6 +103,16 @@ export default function BranchAccessoryStockPage() {
     { title: 'Mã phụ kiện', dataIndex: 'accessoryCode', key: 'accessoryCode', width: 140 },
     { title: 'Tên phụ kiện', dataIndex: 'accessoryName', key: 'accessoryName' },
     { title: 'Loại', dataIndex: 'accessoryType', key: 'accessoryType', width: 140 },
+    {
+      title: 'Tình trạng kho',
+      dataIndex: 'stockCondition',
+      key: 'stockCondition',
+      width: 180,
+      render: (value) => {
+        const meta = STOCK_CONDITION_META[value] || { label: value, color: 'default' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
     { title: 'Tồn kho', dataIndex: 'quantityInStock', key: 'quantityInStock', width: 120 },
     { title: 'Tồn tối thiểu', dataIndex: 'minimumStock', key: 'minimumStock', width: 130, render: (value) => value ?? '-' },
     {
@@ -198,6 +210,9 @@ export default function BranchAccessoryStockPage() {
           </Form.Item>
           <Form.Item name="accessoryId" label="Mã phụ kiện">
             <InputNumber disabled style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="stockCondition" label="Tình trạng kho">
+            <Select disabled options={STOCK_CONDITION_OPTIONS} />
           </Form.Item>
           <Form.Item
             name="quantityInStock"

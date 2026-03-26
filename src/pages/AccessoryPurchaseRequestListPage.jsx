@@ -56,7 +56,7 @@ export default function AccessoryPurchaseRequestListPage() {
         const { data } = await accessoryApi.getPurchaseRequests(filters);
         setItems(unwrapData(data));
       } catch (error) {
-        message.error(error.response?.data?.message || 'Khong the tai phieu de xuat mua phu kien');
+        message.error(error.response?.data?.message || 'Không thể tải phiếu đề xuất mua phụ kiện');
         setItems([]);
       } finally {
         setLoading(false);
@@ -69,24 +69,24 @@ export default function AccessoryPurchaseRequestListPage() {
   const branchOptions = branches.map(branchOption);
 
   const columns = [
-    { title: 'Ma phieu', dataIndex: 'requestCode', key: 'requestCode', width: 180 },
-    { title: 'Nguoi de xuat', dataIndex: 'requesterName', key: 'requesterName', width: 180 },
+    { title: 'Mã phiếu', dataIndex: 'requestCode', key: 'requestCode', width: 180 },
+    { title: 'Người đề xuất', dataIndex: 'requesterName', key: 'requesterName', width: 180 },
     {
-      title: 'Ngay de xuat',
+      title: 'Ngày đề xuất',
       dataIndex: 'requestDate',
       key: 'requestDate',
       width: 150,
       render: (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-'),
     },
     {
-      title: 'Ngay duyet',
+      title: 'Ngày duyệt',
       dataIndex: 'approvedDate',
       key: 'approvedDate',
       width: 150,
       render: (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-'),
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 150,
@@ -96,23 +96,23 @@ export default function AccessoryPurchaseRequestListPage() {
       },
     },
     {
-      title: 'Chi tiet',
+      title: 'Chi tiết',
       key: 'detailCount',
       width: 120,
-      render: (_, record) => `${record.details?.length || 0} dong`,
+      render: (_, record) => `${record.details?.length || 0} dòng`,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 180,
       render: (_, record) => (
         <Space>
           <Button size="small" onClick={() => navigate(`/accessory-purchase-requests/${record.id}`)}>
-            Chi tiet
+            Chi tiết
           </Button>
           {canApprove && record.status === 'Pending' && (
             <Button size="small" type="primary" onClick={() => navigate(`/accessory-purchase-requests/${record.id}`)}>
-              Duyet
+              Duyệt
             </Button>
           )}
         </Space>
@@ -122,24 +122,24 @@ export default function AccessoryPurchaseRequestListPage() {
 
   if (canViewAcrossBranches) {
     columns.splice(1, 0, {
-      title: 'Chi nhanh',
+      title: 'Chi nhánh',
       dataIndex: 'branchName',
       key: 'branchName',
       width: 180,
-      render: (value, record) => value || `Chi nhanh #${record.branchId}`,
+      render: (value, record) => value || `Chi nhánh #${record.branchId}`,
     });
   }
 
   if (!readable) {
-    return <Card>Ban khong co quyen truy cap chuc nang nay.</Card>;
+    return <Card>Bạn không có quyền truy cập chức năng này.</Card>;
   }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Phieu de xuat mua phu kien</h2>
+        <h2 style={{ margin: 0 }}>Phiếu đề xuất mua phụ kiện</h2>
         <Button type="primary" onClick={() => navigate('/accessory-purchase-requests/new')}>
-          Tao phieu de xuat
+          Tạo phiếu đề xuất
         </Button>
       </div>
 
@@ -148,7 +148,7 @@ export default function AccessoryPurchaseRequestListPage() {
           {canViewAcrossBranches && (
             <Select
               allowClear={!user?.branchId}
-              placeholder="Chi nhanh"
+              placeholder="Chi nhánh"
               style={{ width: 180 }}
               disabled={Boolean(user?.branchId) && !canViewAcrossBranches}
               value={filters.branchId}
@@ -158,7 +158,7 @@ export default function AccessoryPurchaseRequestListPage() {
           )}
           <Select
             allowClear
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             style={{ width: 180 }}
             value={filters.status}
             options={Object.entries(PURCHASE_REQUEST_STATUS_META).map(([value, meta]) => ({

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { App, Button, Card, DatePicker, Empty, Form, Input, Modal, Select, Space, Switch, Table, Tag } from 'antd';
+import { App, Button, Card, DatePicker, Empty, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import accessoryApi from '../api/accessoryApi';
@@ -13,6 +13,21 @@ import {
   canViewAccessoryAcrossBranches,
   unwrapData,
 } from '../services/accessoryHelpers';
+
+const buildGroupKey = (item) => [
+  item.accessoryId,
+  item.accessoryCode || '',
+  item.accessoryName || '',
+  item.status || '',
+  item.branchName || '',
+  item.installDate || '',
+  item.removeDate || '',
+  item.installedBy || '',
+  item.installedByName || '',
+  item.removedBy || '',
+  item.removedByName || '',
+  item.notes || '',
+].join('|');
 
 export default function VehicleAccessoriesPage() {
   const { vehicleId } = useParams();
@@ -48,6 +63,15 @@ export default function VehicleAccessoriesPage() {
     loadVehicle();
   }, [vehicleId]);
 
+  const refreshData = async () => {
+    const [accessoryRes, requirementRes] = await Promise.all([
+      accessoryApi.getVehicleAccessories(vehicleId, activeOnly),
+      accessoryApi.checkVehicleAccessoryRequirements(vehicleId),
+    ]);
+    setItems(unwrapData(accessoryRes.data));
+    setRequirementCheck(unwrapData(requirementRes.data));
+  };
+
   useEffect(() => {
     if (!readable) {
       return;
@@ -56,12 +80,7 @@ export default function VehicleAccessoriesPage() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [accessoryRes, requirementRes] = await Promise.all([
-          accessoryApi.getVehicleAccessories(vehicleId, activeOnly),
-          accessoryApi.checkVehicleAccessoryRequirements(vehicleId),
-        ]);
-        setItems(unwrapData(accessoryRes.data));
-        setRequirementCheck(unwrapData(requirementRes.data));
+        await refreshData();
       } catch (error) {
         message.error(error.response?.data?.message || 'Không thể tải danh sách phụ kiện của xe');
         setItems([]);
@@ -74,10 +93,36 @@ export default function VehicleAccessoriesPage() {
     loadData();
   }, [activeOnly, message, readable, vehicleId]);
 
+  const groupedItems = useMemo(() => {
+    const grouped = new Map();
+
+    items.forEach((item) => {
+      const key = buildGroupKey(item);
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          ...item,
+          id: key,
+          quantity: item.quantity || 0,
+          sourceRecords: [item],
+          sourceCount: 1,
+        });
+        return;
+      }
+
+      const existing = grouped.get(key);
+      existing.quantity += item.quantity || 0;
+      existing.sourceRecords.push(item);
+      existing.sourceCount += 1;
+    });
+
+    return Array.from(grouped.values());
+  }, [items]);
+
   const openActionModal = (record, actionType) => {
     setSelectedRecord(record);
     actionForm.setFieldsValue({
       actionType,
+      quantity: 1,
       removeDate: dayjs(),
       notes: '',
     });
@@ -91,25 +136,44 @@ export default function VehicleAccessoriesPage() {
 
     try {
       const values = await actionForm.validateFields();
+      const remainingToProcess = Number(values.quantity);
       setActionLoading(true);
-      await accessoryApi.returnVehicleAccessory(selectedRecord.id, {
-        actionType: values.actionType,
-        removeDate: values.removeDate ? values.removeDate.format('YYYY-MM-DD') : null,
-        notes: values.notes,
-      });
+
+      let quantityLeft = remainingToProcess;
+      const targets = [...(selectedRecord.sourceRecords?.length ? selectedRecord.sourceRecords : [selectedRecord])]
+        .sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+
+      for (const target of targets) {
+        if (quantityLeft <= 0) {
+          break;
+        }
+
+        const processQuantity = Math.min(quantityLeft, Number(target.quantity || 0));
+        if (processQuantity <= 0) {
+          continue;
+        }
+
+        await accessoryApi.returnVehicleAccessory(target.id, {
+          actionType: values.actionType,
+          quantity: processQuantity,
+          removeDate: values.removeDate ? values.removeDate.format('YYYY-MM-DD') : null,
+          notes: values.notes,
+        });
+
+        quantityLeft -= processQuantity;
+      }
+
+      if (quantityLeft > 0) {
+        throw new Error('Không đủ số lượng để xử lý');
+      }
+
       message.success('Cập nhật trạng thái phụ kiện thành công');
       setActionOpen(false);
       setSelectedRecord(null);
-
-      const [accessoryRes, requirementRes] = await Promise.all([
-        accessoryApi.getVehicleAccessories(vehicleId, activeOnly),
-        accessoryApi.checkVehicleAccessoryRequirements(vehicleId),
-      ]);
-      setItems(unwrapData(accessoryRes.data));
-      setRequirementCheck(unwrapData(requirementRes.data));
+      await refreshData();
     } catch (error) {
       if (!error?.errorFields) {
-        message.error(error.response?.data?.message || 'Xử lý phụ kiện thất bại');
+        message.error(error.response?.data?.message || error.message || 'Xử lý phụ kiện thất bại');
       }
     } finally {
       setActionLoading(false);
@@ -250,7 +314,7 @@ export default function VehicleAccessoriesPage() {
       <Table
         rowKey="id"
         loading={loading}
-        dataSource={items}
+        dataSource={groupedItems}
         columns={columns}
         scroll={{ x: 1400 }}
         pagination={{ pageSize: 10, showSizeChanger: true }}
@@ -273,6 +337,17 @@ export default function VehicleAccessoriesPage() {
                 { value: 'LOST', label: 'LOST - Mất' },
               ]}
             />
+          </Form.Item>
+          <Form.Item
+            name="quantity"
+            label="Số lượng xử lý"
+            rules={[
+              { required: true, message: 'Vui lòng nhập số lượng xử lý' },
+              { type: 'number', min: 1, message: 'Số lượng xử lý phải lớn hơn 0' },
+            ]}
+            extra={selectedRecord ? `Tối đa: ${selectedRecord.quantity}` : undefined}
+          >
+            <InputNumber min={1} max={selectedRecord?.quantity || 1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="removeDate" label="Ngày tháo">
             <DatePicker style={{ width: '100%' }} />

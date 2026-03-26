@@ -63,7 +63,7 @@ export default function AccessoryListPage() {
         const { data } = await accessoryApi.getAccessories(params);
         setItems(unwrapData(data));
       } catch (error) {
-        message.error(error.response?.data?.message || 'Khong the tai danh sach phu kien');
+        message.error(error.response?.data?.message || 'Không thể tải danh sách phụ kiện');
         setItems([]);
       } finally {
         setLoading(false);
@@ -76,7 +76,7 @@ export default function AccessoryListPage() {
   const columns = useMemo(
     () => [
       {
-        title: 'Hinh anh',
+        title: 'Hình ảnh',
         dataIndex: 'imageUrl',
         key: 'imageUrl',
         width: 110,
@@ -106,48 +106,48 @@ export default function AccessoryListPage() {
             </div>
           ),
       },
-      { title: 'Ma', dataIndex: 'code', key: 'code', width: 140 },
-      { title: 'Ten', dataIndex: 'name', key: 'name' },
+      { title: 'Mã', dataIndex: 'code', key: 'code', width: 140 },
+      { title: 'Tên', dataIndex: 'name', key: 'name' },
       {
-        title: 'Loai',
+        title: 'Loại',
         dataIndex: 'type',
         key: 'type',
         width: 140,
         render: (value) => ACCESSORY_TYPE_OPTIONS.find((item) => item.value === value)?.label || value,
       },
       {
-        title: 'Don gia',
+        title: 'Đơn giá',
         dataIndex: 'unitPrice',
         key: 'unitPrice',
         width: 150,
         render: formatCurrency,
       },
       {
-        title: 'Ton toi thieu mac dinh',
+        title: 'Tồn tối thiểu mặc định',
         dataIndex: 'minimumStock',
         key: 'minimumStock',
         width: 170,
         render: (value) => value ?? '-',
       },
       {
-        title: 'Trang thai',
+        title: 'Trạng thái',
         dataIndex: 'isActive',
         key: 'isActive',
         width: 120,
-        render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? 'Dang dung' : 'Ngung dung'}</Tag>,
+        render: (value) => <Tag color={value ? 'green' : 'default'}>{value ? 'Đang dùng' : 'Ngừng dùng'}</Tag>,
       },
       {
-        title: 'Ghi chu',
+        title: 'Ghi chú',
         key: 'stockHint',
         width: 220,
-        render: () => <Text type="secondary">Ton kho thuc te duoc theo doi theo chi nhanh.</Text>,
+        render: () => <Text type="secondary">Tồn kho thực tế được theo dõi theo chi nhánh.</Text>,
       },
       {
-        title: 'Thao tac',
+        title: 'Thao tác',
         key: 'actions',
         width: 100,
         render: (_, record) => (
-          <Tooltip title={canWriteModule ? 'Sua' : 'Khong co quyen'}>
+          <Tooltip title={canWriteModule ? 'Sửa' : 'Không có quyền'}>
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -162,26 +162,26 @@ export default function AccessoryListPage() {
   );
 
   if (!canReadModule) {
-    return <Card>Ban khong co quyen truy cap chuc nang nay.</Card>;
+    return <Card>Bạn không có quyền truy cập chức năng này.</Card>;
   }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Quan ly phu kien</h2>
+        <h2 style={{ margin: 0 }}>Quản lý phụ kiện</h2>
         <Space>
-          <Button onClick={() => navigate('/branch-accessory-stock')}>Ton kho chi nhanh</Button>
-          <Button onClick={() => navigate('/accessory-purchase-requests')}>Phieu de xuat mua</Button>
-          <Button onClick={() => navigate('/accessory-goods-receipts')}>Phieu nhap hang</Button>
-          <Button onClick={() => navigate('/vehicle-accessory-requirements')}>Dinh muc phu kien</Button>
-          <Button onClick={() => navigate('/accessories/issue')}>Cap phat phu kien</Button>
+          <Button onClick={() => navigate('/branch-accessory-stock')}>Tồn kho chi nhánh</Button>
+          <Button onClick={() => navigate('/accessory-purchase-requests')}>Phiếu đề xuất mua</Button>
+          <Button onClick={() => navigate('/accessory-goods-receipts')}>Phiếu nhập hàng</Button>
+          <Button onClick={() => navigate('/vehicle-accessory-requirements')}>Định mức phụ kiện</Button>
+          <Button onClick={() => navigate('/accessories/issue')}>Cấp phát phụ kiện</Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             disabled={!canWriteModule}
             onClick={() => navigate('/accessories/new')}
           >
-            Them phu kien
+            Thêm phụ kiện
           </Button>
         </Space>
       </div>
@@ -190,13 +190,13 @@ export default function AccessoryListPage() {
         <Space wrap>
           <Input.Search
             allowClear
-            placeholder="Tim theo ma/ten"
+            placeholder="Tìm theo mã/tên"
             style={{ width: 260 }}
             onSearch={(value) => setQuery((prev) => ({ ...prev, keyword: value, page: 1 }))}
           />
           <Select
             allowClear
-            placeholder="Loai"
+            placeholder="Loại"
             style={{ width: 180 }}
             options={ACCESSORY_TYPE_OPTIONS}
             value={query.type}
@@ -204,18 +204,18 @@ export default function AccessoryListPage() {
           />
           <Select
             allowClear
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             style={{ width: 160 }}
             value={query.isActive}
             onChange={(value) => setQuery((prev) => ({ ...prev, isActive: value, page: 1 }))}
             options={[
-              { value: true, label: 'Dang dung' },
-              { value: false, label: 'Ngung dung' },
+              { value: true, label: 'Đang dùng' },
+              { value: false, label: 'Ngừng dùng' },
             ]}
           />
           <Switch
-            checkedChildren="Dang hoat dong"
-            unCheckedChildren="Tat ca"
+            checkedChildren="Đang hoạt động"
+            unCheckedChildren="Tất cả"
             checked={query.isActive === true}
             onChange={(checked) => setQuery((prev) => ({ ...prev, isActive: checked ? true : undefined, page: 1 }))}
           />

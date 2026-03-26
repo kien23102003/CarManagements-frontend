@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Select } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Form, Input, InputNumber, Select } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import accessoryApi from '../api/accessoryApi';
@@ -13,6 +13,7 @@ import {
   canIssueAccessory,
   canViewAccessoryAcrossBranches,
   isDisposedVehicleStatus,
+  STOCK_CONDITION_META,
   unwrapData,
 } from '../services/accessoryHelpers';
 
@@ -33,7 +34,8 @@ export default function AccessoryIssuePage() {
   const [loading, setLoading] = useState(false);
   const [branchLoading, setBranchLoading] = useState(false);
 
-  const selectedBranchId = Form.useWatch('branchId', form);
+  const watchedBranchId = Form.useWatch('branchId', form);
+  const selectedBranchId = watchedBranchId ?? user?.branchId;
 
   useEffect(() => {
     const loadDropdown = async () => {
@@ -44,10 +46,10 @@ export default function AccessoryIssuePage() {
         ]);
         const branchList = unwrapData(branchRes.data);
         const vehicleList = unwrapData(vehicleRes.data).filter((vehicle) => !isDisposedVehicleStatus(vehicle.status));
+        const defaultBranchId = user?.branchId || branchIdValue(branchList[0]);
+
         setBranches(branchList);
         setVehicles(vehicleList);
-
-        const defaultBranchId = user?.branchId || branchIdValue(branchList[0]);
         form.setFieldsValue({
           branchId: defaultBranchId,
           vehicleId: presetVehicleId ? Number(presetVehicleId) : undefined,
@@ -72,7 +74,7 @@ export default function AccessoryIssuePage() {
       setBranchLoading(true);
       try {
         const { data } = await accessoryApi.getBranchStocks({ branchId: selectedBranchId, page: 1, pageSize: 500 });
-        setStockItems(unwrapData(data));
+        setStockItems(unwrapData(data).filter((item) => item.quantityInStock > 0));
       } catch (error) {
         message.error(error.response?.data?.message || 'Không thể tải tồn kho chi nhánh');
         setStockItems([]);
@@ -93,14 +95,40 @@ export default function AccessoryIssuePage() {
       label: `${vehicle.licensePlate || `Xe #${vehicle.id}`} - ${vehicle.modelName || 'Chưa rõ loại xe'}`,
     }));
 
-  const accessoryOptions = stockItems.map((item) => ({
-    value: item.accessoryId,
-    label: `${item.accessoryCode || ''} ${item.accessoryName || ''}`.trim(),
-    stock: item.quantityInStock,
-  }));
+  const accessoryOptions = stockItems.map((item) => {
+    const stockMeta = STOCK_CONDITION_META[item.stockCondition] || {
+      label: item.stockCondition || 'Không rõ',
+      color: 'default',
+    };
+
+    return {
+      value: `${item.accessoryId}:${item.stockCondition}`,
+      accessoryId: item.accessoryId,
+      stockCondition: item.stockCondition,
+      label: `${item.accessoryCode || ''} ${item.accessoryName || ''}`.trim(),
+      stock: item.quantityInStock,
+      tag: stockMeta,
+    };
+  });
+
+  const hasSelectedBranch = Boolean(selectedBranchId);
+  const hasStockItems = accessoryOptions.length > 0;
 
   const handleBranchChange = () => {
-    form.setFieldsValue({ accessoryId: undefined, vehicleId: presetVehicleId ? Number(presetVehicleId) : undefined });
+    form.setFieldsValue({
+      accessoryKey: undefined,
+      accessoryId: undefined,
+      stockCondition: undefined,
+      vehicleId: presetVehicleId ? Number(presetVehicleId) : undefined,
+    });
+  };
+
+  const handleAccessoryChange = (value) => {
+    const selectedAccessory = accessoryOptions.find((item) => item.value === value);
+    form.setFieldsValue({
+      accessoryId: selectedAccessory?.accessoryId,
+      stockCondition: selectedAccessory?.stockCondition,
+    });
   };
 
   const handleSubmit = async (values) => {
@@ -109,7 +137,9 @@ export default function AccessoryIssuePage() {
     }
 
     const selectedVehicle = vehicles.find((vehicle) => vehicle.id === values.vehicleId);
-    const selectedAccessory = stockItems.find((item) => item.accessoryId === values.accessoryId);
+    const selectedAccessory = stockItems.find(
+      (item) => item.accessoryId === values.accessoryId && item.stockCondition === values.stockCondition,
+    );
 
     if (!selectedVehicle) {
       message.error('Không tìm thấy xe được chọn');
@@ -122,12 +152,12 @@ export default function AccessoryIssuePage() {
     }
 
     if (!selectedAccessory) {
-      message.error('Phụ kiện không tồn tại trong kho chi nhánh');
+      message.error('Phụ kiện không tồn tại trong kho chi nhánh với tình trạng đã chọn');
       return;
     }
 
     if (values.quantity > selectedAccessory.quantityInStock) {
-      message.error(`Số lượng vượt tồn kho chi nhánh. Còn lại: ${selectedAccessory.quantityInStock}`);
+      message.error(`Số lượng vượt tồn kho. Còn lại: ${selectedAccessory.quantityInStock}`);
       return;
     }
 
@@ -137,6 +167,7 @@ export default function AccessoryIssuePage() {
         branchId: values.branchId,
         vehicleId: values.vehicleId,
         accessoryId: values.accessoryId,
+        stockCondition: values.stockCondition,
         quantity: values.quantity,
         installDate: values.installDate ? values.installDate.format('YYYY-MM-DD') : null,
         notes: values.notes,
@@ -177,6 +208,11 @@ export default function AccessoryIssuePage() {
               />
             </Form.Item>
           )}
+          {!canViewAcrossBranches && (
+            <Form.Item name="branchId" hidden>
+              <InputNumber />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="vehicleId"
@@ -187,7 +223,7 @@ export default function AccessoryIssuePage() {
           </Form.Item>
 
           <Form.Item
-            name="accessoryId"
+            name="accessoryKey"
             label="Phụ kiện"
             rules={[{ required: true, message: 'Vui lòng chọn phụ kiện' }]}
           >
@@ -195,12 +231,36 @@ export default function AccessoryIssuePage() {
               showSearch
               optionFilterProp="label"
               loading={branchLoading}
+              onChange={handleAccessoryChange}
+              notFoundContent={
+                hasSelectedBranch && !branchLoading
+                  ? 'Chi nhánh này chưa có phụ kiện trong kho'
+                  : 'Không có dữ liệu'
+              }
               options={accessoryOptions.map((item) => ({
                 value: item.value,
-                label: `${item.label} (tồn: ${item.stock})`,
+                label: `${item.label} (${item.tag.label}, tồn: ${item.stock})`,
               }))}
             />
           </Form.Item>
+
+          <Form.Item name="accessoryId" hidden>
+            <InputNumber />
+          </Form.Item>
+
+          <Form.Item name="stockCondition" hidden>
+            <Input />
+          </Form.Item>
+
+          {hasSelectedBranch && !branchLoading && !hasStockItems && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="Chi nhánh này chưa có phụ kiện trong kho"
+              description="Hãy kiểm tra lại tồn kho chi nhánh hoặc chọn chi nhánh khác trước khi cấp phát."
+            />
+          )}
 
           <Form.Item
             name="quantity"

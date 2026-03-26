@@ -46,6 +46,17 @@ export const ACCESSORY_REFERENCE_TYPE_META = {
   ADJUST: 'Điều chỉnh',
 };
 
+export const STOCK_CONDITION_META = {
+  NEW: { label: 'Mới', color: 'green' },
+  USED: { label: 'Đã qua sử dụng', color: 'gold' },
+  DAMAGED: { label: 'Hư hỏng', color: 'red' },
+};
+
+export const STOCK_CONDITION_OPTIONS = Object.entries(STOCK_CONDITION_META).map(([value, meta]) => ({
+  value,
+  label: meta.label,
+}));
+
 export const canReadAccessoryModule = (roles = []) =>
   roles.includes('Operator') ||
   roles.includes('Executive Management') ||
@@ -93,7 +104,9 @@ export const branchLabel = (branch) =>
   branch?.branchName ||
   branch?.name ||
   branch?.Name ||
-  (branch?.branchId ?? branch?.id ?? branch?.Id ? `Chi nhánh #${branch?.branchId ?? branch?.id ?? branch?.Id}` : 'Chưa có chi nhánh');
+  (branch?.branchId ?? branch?.id ?? branch?.Id
+    ? `Chi nhánh #${branch?.branchId ?? branch?.id ?? branch?.Id}`
+    : 'Chưa có chi nhánh');
 
 export const branchIdValue = (branch) => branch?.branchId ?? branch?.id ?? branch?.Id;
 

@@ -11,6 +11,7 @@ import {
   canReadAccessoryModule,
   canViewAccessoryAcrossBranches,
   formatCurrency,
+  STOCK_CONDITION_META,
   unwrapData,
 } from '../services/accessoryHelpers';
 
@@ -82,6 +83,8 @@ export default function AccessoryTransactionsPage() {
   }, [filters, message, readable]);
 
   const branchOptions = branches.map(branchOption);
+  const hideVehicleColumn =
+    filters.transactionType === 'IMPORT' || filters.referenceType === 'PURCHASE_RECEIPT';
 
   const columns = [
     {
@@ -102,18 +105,26 @@ export default function AccessoryTransactionsPage() {
       ),
     },
     {
-      title: 'Xe',
-      key: 'vehicle',
-      width: 150,
-      render: (_, record) => record.vehicleLicensePlate || (record.vehicleId ? `Xe #${record.vehicleId}` : '-'),
-    },
-    {
       title: 'Loại giao dịch',
       dataIndex: 'transactionType',
       key: 'transactionType',
       width: 140,
       render: (value) => {
         const meta = ACCESSORY_TRANSACTION_TYPE_META[value] || { label: value, color: 'default' };
+        return <Tag color={meta.color}>{meta.label}</Tag>;
+      },
+    },
+    {
+      title: 'Tình trạng kho',
+      dataIndex: 'stockCondition',
+      key: 'stockCondition',
+      width: 180,
+      render: (value) => {
+        if (!value) {
+          return '-';
+        }
+
+        const meta = STOCK_CONDITION_META[value] || { label: value, color: 'default' };
         return <Tag color={meta.color}>{meta.label}</Tag>;
       },
     },
@@ -153,6 +164,15 @@ export default function AccessoryTransactionsPage() {
       key: 'branch',
       width: 180,
       render: (_, record) => record.branchName || (record.branchId ? `Chi nhánh #${record.branchId}` : '-'),
+    });
+  }
+
+  if (!hideVehicleColumn) {
+    columns.splice(canViewAcrossBranches ? 4 : 3, 0, {
+      title: 'Xe',
+      key: 'vehicle',
+      width: 150,
+      render: (_, record) => record.vehicleLicensePlate || (record.vehicleId ? `Xe #${record.vehicleId}` : '-'),
     });
   }
 
@@ -229,7 +249,7 @@ export default function AccessoryTransactionsPage() {
         loading={loading}
         columns={columns}
         dataSource={items}
-        scroll={{ x: 1300 }}
+        scroll={{ x: 1450 }}
         pagination={{
           current: filters.page,
           pageSize: filters.pageSize,

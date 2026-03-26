@@ -55,7 +55,7 @@ export default function AccessoryGoodsReceiptListPage() {
         const { data } = await accessoryApi.getGoodsReceipts(filters);
         setItems(unwrapData(data));
       } catch (error) {
-        message.error(error.response?.data?.message || 'Khong the tai phieu nhap phu kien');
+        message.error(error.response?.data?.message || 'Không thể tải phiếu nhập phụ kiện');
         setItems([]);
       } finally {
         setLoading(false);
@@ -68,29 +68,29 @@ export default function AccessoryGoodsReceiptListPage() {
   const branchOptions = branches.map(branchOption);
 
   const columns = [
-    { title: 'Ma phieu nhap', dataIndex: 'id', key: 'id', width: 120, render: (value) => `#${value}` },
+    { title: 'Mã phiếu nhập', dataIndex: 'id', key: 'id', width: 120, render: (value) => `#${value}` },
     {
-      title: 'Phieu de xuat',
+      title: 'Phiếu đề xuất',
       key: 'purchaseRequestCode',
       width: 180,
       render: (_, record) => record.purchaseRequestCode || `#${record.purchaseRequestId}`,
     },
     {
-      title: 'Ngay nhap',
+      title: 'Ngày nhập',
       dataIndex: 'receiptDate',
       key: 'receiptDate',
       width: 150,
       render: (value) => (value ? new Date(value).toLocaleDateString('vi-VN') : '-'),
     },
     {
-      title: 'Nguoi nhan',
+      title: 'Người nhận',
       dataIndex: 'receivedByName',
       key: 'receivedByName',
       width: 180,
       render: (value, record) => value || record.receivedBy,
     },
     {
-      title: 'Trang thai',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 140,
@@ -100,18 +100,18 @@ export default function AccessoryGoodsReceiptListPage() {
       },
     },
     {
-      title: 'Chi tiet',
+      title: 'Chi tiết',
       key: 'detailCount',
       width: 120,
-      render: (_, record) => `${record.details?.length || 0} dong`,
+      render: (_, record) => `${record.details?.length || 0} dòng`,
     },
     {
-      title: 'Thao tac',
+      title: 'Thao tác',
       key: 'actions',
       width: 120,
       render: (_, record) => (
         <Button size="small" onClick={() => navigate(`/accessory-goods-receipts/${record.id}`)}>
-          Chi tiet
+          Chi tiết
         </Button>
       ),
     },
@@ -119,23 +119,23 @@ export default function AccessoryGoodsReceiptListPage() {
 
   if (canViewAcrossBranches) {
     columns.splice(2, 0, {
-      title: 'Chi nhanh',
+      title: 'Chi nhánh',
       dataIndex: 'branchName',
       key: 'branchName',
       width: 180,
-      render: (value, record) => value || `Chi nhanh #${record.branchId}`,
+      render: (value, record) => value || `Chi nhánh #${record.branchId}`,
     });
   }
 
   if (!readable) {
-    return <Card>Ban khong co quyen truy cap chuc nang nay.</Card>;
+    return <Card>Bạn không có quyền truy cập chức năng này.</Card>;
   }
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Phieu nhap hang phu kien</h2>
-        <Button onClick={() => navigate('/accessory-purchase-requests')}>Chon tu phieu de xuat</Button>
+        <h2 style={{ margin: 0 }}>Phiếu nhập hàng phụ kiện</h2>
+        <Button onClick={() => navigate('/accessory-purchase-requests')}>Chọn từ phiếu đề xuất</Button>
       </div>
 
       <Card style={{ marginBottom: 16 }}>
@@ -143,7 +143,7 @@ export default function AccessoryGoodsReceiptListPage() {
           {canViewAcrossBranches && (
             <Select
               allowClear={!user?.branchId}
-              placeholder="Chi nhanh"
+              placeholder="Chi nhánh"
               style={{ width: 180 }}
               disabled={Boolean(user?.branchId) && !canViewAcrossBranches}
               value={filters.branchId}
@@ -153,7 +153,7 @@ export default function AccessoryGoodsReceiptListPage() {
           )}
           <Select
             allowClear
-            placeholder="Trang thai"
+            placeholder="Trạng thái"
             style={{ width: 180 }}
             value={filters.status}
             options={Object.entries(GOODS_RECEIPT_STATUS_META).map(([value, meta]) => ({
@@ -163,7 +163,7 @@ export default function AccessoryGoodsReceiptListPage() {
             onChange={(value) => setFilters((prev) => ({ ...prev, status: value, page: 1 }))}
           />
           <InputNumber
-            placeholder="Ma phieu de xuat"
+            placeholder="Mã phiếu đề xuất"
             min={1}
             value={filters.purchaseRequestId}
             onChange={(value) => setFilters((prev) => ({ ...prev, purchaseRequestId: value ?? undefined, page: 1 }))}
