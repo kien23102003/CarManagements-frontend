@@ -117,6 +117,7 @@ export default function App() {
 
             <Route path="proposals" element={<ProposalListPage />} />
             <Route path="proposals/create" element={<CreateProposalPage />} />
+            <Route path="proposals/edit/:id" element={<CreateProposalPage />} />
             <Route path="disposal-proposals" element={<DisposalProposalListPage />} />
             <Route path="disposal-proposals/new" element={<DisposalProposalCreatePage />} />
             <Route path="disposal-proposals/:id" element={<DisposalProposalDetailPage />} />

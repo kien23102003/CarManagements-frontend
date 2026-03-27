@@ -36,9 +36,10 @@ const { Option } = Select;
 
 const STATUS_CONFIG = {
     Pending: { label: 'Chờ duyệt', color: 'orange' },
+    ManagerApproved: { label: 'Đã duyệt (Quản lý)', color: 'blue' },
     Approved: { label: 'Đã duyệt', color: 'green' },
     Rejected: { label: 'Từ chối', color: 'red' },
-    Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'blue' },
+    Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'purple' },
     Completed: { label: 'Hoàn thành', color: 'cyan' },
 };
 
@@ -151,13 +152,30 @@ export default function ProposalListPage() {
             render: (id) => <b>#{id}</b>,
         },
         {
-            title: 'Ngày tạo',
-            dataIndex: 'createdDate',
+            title: 'Ngày hoàn thành',
+            dataIndex: 'completionDeadline',
             sorter: (a, b) =>
-                dayjs(a.createdDate).unix() -
-                dayjs(b.createdDate).unix(),
-            render: (date) =>
-                date ? dayjs(date).format('DD/MM/YYYY') : '-',
+                dayjs(a.completionDeadline || 0).unix() -
+                dayjs(b.completionDeadline || 0).unix(),
+            render: (date) => {
+                if (!date) return '-';
+                const deadline = dayjs(date);
+                const today = dayjs().startOf('day');
+                const diff = deadline.diff(today, 'day');
+
+                let color = 'blue';
+                let text = deadline.format('DD/MM/YYYY');
+
+                if (diff < 0) {
+                    color = 'red';
+                    text += ` (Quá hạn ${Math.abs(diff)} ngày)`;
+                } else if (diff <= 3) {
+                    color = 'warning';
+                    text += ` (Còn ${diff} ngày)`;
+                }
+
+                return <Tag color={color}>{text}</Tag>;
+            },
         },
         {
             title: 'Chi phí',
@@ -265,6 +283,17 @@ export default function ProposalListPage() {
                                     Từ chối
                                 </Button>
                             </>
+                        )}
+
+                        {!isExecutive && !isAccountant && (
+                            <Button
+                                size="small"
+                                type="default"
+                                disabled={disabled}
+                                onClick={() => navigate(`/proposals/edit/${record.proposalId}`)}
+                            >
+                                Sửa
+                            </Button>
                         )}
 
                         {/* ẨN NÚT HỦY ĐỐI VỚI KẾ TOÁN (Chỉ có Quản lý hoặc Người tạo mới được Hủy) */}
@@ -408,10 +437,18 @@ export default function ProposalListPage() {
                                             <Table
                                                 dataSource={selectedPlan.branchDetails || []}
                                                 columns={[
-                                                    { title: 'Chi nhánh', dataIndex: 'branchName', key: 'branchName' },
+                                                    { title: 'Chi nhánh', dataIndex: 'proposerBranchName', key: 'proposerBranchName', render: (v) => v || '-' },
                                                     { title: 'Nhãn hiệu', dataIndex: 'manufacturer', key: 'manufacturer', render: (v) => v || '-' },
+                                                    { title: 'Phiên bản xe', dataIndex: 'version', key: 'version', render: (v) => v || '-' },
                                                     { title: 'Số chỗ', dataIndex: 'seats', key: 'seats', render: (v) => v ? `${v} chỗ` : '-' },
                                                     { title: 'Số lượng', dataIndex: 'proposedQuantity', key: 'proposedQuantity', align: 'center' },
+                                                    {
+                                                        title: 'P.Thức', dataIndex: 'acquisitionMethod', key: 'acquisitionMethod', render: (v) => { if (v === 'Ownership') return 'Mua đứt'; if (v === 'Lease') return 'Thuê'; if (v === 'Finance') return 'Thuê TC'; return '-'; }
+                                                    },
+                                                    { title: 'Thuế ĐK', dataIndex: 'registrationTax', render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                                    { title: 'Phí ĐB', dataIndex: 'roadMaintenanceFee', render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                                    { title: 'Phí Biển', dataIndex: 'licensePlateFee', render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                                    { title: 'Bảo hiểm', dataIndex: 'insuranceFee', render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
                                                     {
                                                         title: 'Đơn giá',
                                                         dataIndex: 'unitPrice',

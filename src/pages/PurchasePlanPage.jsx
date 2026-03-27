@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react'; // HMR Reload Marker
 import {
     Table,
     Button,
@@ -21,19 +21,23 @@ import {
     EyeOutlined,
     DeleteOutlined,
     SearchOutlined,
+    DollarOutlined,
+    FileSearchOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import proposalApi from '../api/proposalApi';
 import { useAuth } from '../services/AuthContext';
 import VehicleReceptionForm from '../components/VehicleReceptionForm';
+import ConfirmPaymentModal from '../components/ConfirmPaymentModal';
 
 const { Option } = Select;
 
 const STATUS_CONFIG = {
     Pending: { label: 'Chờ duyệt', color: 'orange' },
+    ManagerApproved: { label: 'Đã duyệt (Quản lý)', color: 'blue' },
     Approved: { label: 'Đã duyệt', color: 'green' },
     Rejected: { label: 'Từ chối', color: 'red' },
-    Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'blue' },
+    Received_Pending_Payment: { label: 'Chờ thanh toán', color: 'purple' },
     Completed: { label: 'Hoàn thành', color: 'cyan' },
 };
 
@@ -53,6 +57,11 @@ export default function PurchasePlanPage() {
     const [errorModalOpen, setErrorModalOpen] = useState(false);
     const [paymentErrorMsg, setPaymentErrorMsg] = useState('');
     const [errorProposalId, setErrorProposalId] = useState(null);
+
+    // Kế toán xác nhận thanh toán (Mới)
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [selectedProposalForConfirm, setSelectedProposalForConfirm] = useState(null);
+    const [isReadOnly, setIsReadOnly] = useState(false);
 
     const { user } = useAuth();
     const isManager = user?.roles?.some(
@@ -104,6 +113,13 @@ export default function PurchasePlanPage() {
     };
 
     const handleAddReception = (record) => {
+        setIsReadOnly(false);
+        setSelectedPlan(record);
+        setModalOpen(true);
+    };
+
+    const handleViewReception = (record) => {
+        setIsReadOnly(true);
         setSelectedPlan(record);
         setModalOpen(true);
     };
@@ -111,32 +127,38 @@ export default function PurchasePlanPage() {
     const handleModalClose = () => {
         setModalOpen(false);
         setSelectedPlan(null);
+        setIsReadOnly(false);
     };
 
-    const handleReceptionCreated = async () => {
-        message.success('Bản ghi đối chiếu được tạo thành công');
+    const handleReceptionCreated = async (count, errorCount) => {
+        if (errorCount === 0) {
+            Modal.success({
+                title: 'Đối chiếu hoàn tất!',
+                content: `Hệ thống đã ghi nhận việc tiếp nhận thành công ${count} xe mới.`,
+                okText: 'Tuyệt vời',
+            });
+        } else {
+            Modal.warning({
+                title: 'Đối chiếu một phần thành công',
+                content: `Đã lưu thành công ${count} xe, nhưng có ${errorCount} xe gặp lỗi. Vui lòng kiểm tra lại danh sách.`,
+                okText: 'Đóng',
+            });
+        }
         handleModalClose();
         loadData(); // Refresh list
     };
 
-    // ===== HANDLE CONFIRM PAYMENT =====
-    const handleConfirmPayment = async (proposalId) => {
-        try {
-            if (proposalApi.confirmPayment) {
-                await proposalApi.confirmPayment(proposalId);
-            } else {
-                message.warning('Vui lòng định nghĩa hàm confirmPayment trong proposalApi.js');
-                return;
-            }
-            message.success('Đã xác nhận thanh toán. Xe mới đã được tạo trong hệ thống!');
-            loadData();
-        } catch (error) {
-            // Bắt lỗi và hiển thị Modal
-            const errMsg = error?.response?.data?.message || error?.message || 'Lỗi khi xác nhận thanh toán';
-            setPaymentErrorMsg(errMsg);
-            setErrorProposalId(proposalId);
-            setErrorModalOpen(true);
-        }
+    // ===== HANDLE CONFIRM PAYMENT (NEW) =====
+    const handleOpenConfirmModal = (record, readOnly = false) => {
+        setIsReadOnly(readOnly);
+        setSelectedProposalForConfirm(record);
+        setConfirmModalOpen(true);
+    };
+
+    const handleConfirmSuccess = () => {
+        setConfirmModalOpen(false);
+        setSelectedProposalForConfirm(null);
+        loadData();
     };
 
     const handleRollback = async () => {
@@ -167,20 +189,39 @@ export default function PurchasePlanPage() {
             render: (text) => <span>{text?.substring(0, 50)}...</span>,
         },
         {
-            title: 'Ngày tạo',
-            dataIndex: 'createdDate',
-            key: 'createdDate',
-            width: 120,
-            render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
+            title: 'Ngày hoàn thành',
+            dataIndex: 'completionDeadline',
+            key: 'completionDeadline',
+            width: 150,
+            render: (date) => {
+                if (!date) return '-';
+                const deadline = dayjs(date);
+                const today = dayjs().startOf('day');
+                const diff = deadline.diff(today, 'day');
+
+                let color = 'blue';
+                let text = deadline.format('DD/MM/YYYY');
+
+                if (diff < 0) {
+                    color = 'red';
+                    text += ` (Quá hạn ${Math.abs(diff)} ngày)`;
+                } else if (diff <= 3) {
+                    color = 'warning';
+                    text += ` (Còn ${diff} ngày)`;
+                }
+
+                return <Tag color={color}>{text}</Tag>;
+            },
             sorter: (a, b) =>
-                new Date(a.createdDate) - new Date(b.createdDate),
+                new Date(a.completionDeadline || 0) - new Date(b.completionDeadline || 0),
         },
         {
             title: 'Ngày duyệt',
             dataIndex: 'approvedDate',
             key: 'approvedDate',
             width: 120,
-            render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : '-'),
+            render: (date) => (date ? dayjs(date).format('DD/MM/YYYY') : <span style={{ color: '#aaa' }}>Chưa duyệt</span>),
+            sorter: (a, b) => new Date(a.approvedDate || 0) - new Date(b.approvedDate || 0),
         },
         {
             title: 'Chi phí dự kiến',
@@ -224,21 +265,35 @@ export default function PurchasePlanPage() {
             key: 'action',
             width: 150,
             render: (_, record) => (
-                <Space>
+                <Space size="middle">
                     <Button
-                        size="small"
+                        type="link"
                         icon={<EyeOutlined />}
                         onClick={() => handleViewDetail(record)}
-                        type="primary"
-                        ghost
                     >
                         Chi tiết
                     </Button>
 
-                    {/* Nút Đối chiếu xe cho Operator: Chỉ hiện khi trạng thái là Approved */}
-                    {!isManager && !isAccountant && record.status === 'Approved' && (
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => handleAddReception(record)} type="default">
-                            ĐC xe
+                    {/* Operator đối chiếu xe */}
+                    {!isManager && !isAccountant && (record.status === 'Approved' || record.status === 'ManagerApproved') && (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => handleAddReception(record)}
+                        >
+                            Đối chiếu
+                        </Button>
+                    )}
+
+                    {/* Kế toán xác nhận thanh toán */}
+                    {isAccountant && record.status === 'Received_Pending_Payment' && (!user?.branchId || record.branchDetails?.some(b => b.branchId === user?.branchId)) && (
+                        <Button
+                            type="primary"
+                            icon={<DollarOutlined />}
+                            style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+                            onClick={() => handleOpenConfirmModal(record)}
+                        >
+                            Thanh toán
                         </Button>
                     )}
 
@@ -247,13 +302,29 @@ export default function PurchasePlanPage() {
                         <span style={{ color: '#1890ff', fontSize: '13px', fontWeight: 500 }}>Đang chờ TT</span>
                     )}
 
-                    {/* Nút Xác nhận thanh toán cho Kế toán: Hiện khi chờ TT VÀ đề xuất thuộc chi nhánh của kế toán */}
-                    {isAccountant && record.status === 'Received_Pending_Payment' && (!user?.branchId || record.branchDetails?.some(b => b.branchId === user?.branchId)) && (
-                        <Popconfirm title="Xác nhận thanh toán và tạo xe mới?" onConfirm={() => handleConfirmPayment(record.proposalId)}>
-                            <Button size="small" type="primary">
-                                Xác nhận TT
+                    {/* Xem lịch sử khi đã Hoàn thành */}
+                    {record.status === 'Completed' && (
+                        <>
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<FileSearchOutlined />}
+                                onClick={() => handleViewReception(record)}
+                                title="Xem lịch sử đối chiếu xe"
+                            >
+                                Đối chiếu
                             </Button>
-                        </Popconfirm>
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<DollarOutlined />}
+                                style={{ color: '#52c41a' }}
+                                onClick={() => handleOpenConfirmModal(record, true)}
+                                title="Xem chi tiết thực chi"
+                            >
+                                Thanh toán
+                            </Button>
+                        </>
                     )}
                 </Space>
             ),
@@ -267,6 +338,11 @@ export default function PurchasePlanPage() {
                 <Row gutter={[16, 16]} align="middle">
                     <Col span={24}>
                         <h2>Danh sách kế hoạch mua</h2>
+                        {!isManager && !isAccountant && (
+                            <Tag color="geekblue" style={{ marginBottom: 8, fontSize: 13, padding: '4px 10px' }}>
+                                👤 Operator: <b>{user?.userName || user?.fullName}</b> | 🏢 Chi nhánh: <b>{user?.branchName || 'Tất cả'}</b>
+                            </Tag>
+                        )}
                         <p style={{ color: '#666', fontSize: 12 }}>
                             Hiển thị danh sách các đề xuất mua đã được duyệt, sắp xếp theo ưu
                             tiên
@@ -319,7 +395,9 @@ export default function PurchasePlanPage() {
                     title={`Chi tiết kế hoạch mua #${selectedPlan.proposalId}`}
                     open={detailModalOpen}
                     onCancel={() => setDetailModalOpen(false)}
-                    width={800}
+                    width={Math.min(window.innerWidth - 40, 1300)}
+                    style={{ top: 20 }}
+                    styles={{ body: { maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' } }}
                     footer={null}
                 >
                     <div style={{ padding: '20px 0' }}>
@@ -328,13 +406,21 @@ export default function PurchasePlanPage() {
                                 <div><strong>Mô tả:</strong></div>
                                 <p>{selectedPlan.description}</p>
                             </Col>
-                            <Col xs={24} sm={12}>
+                            <Col xs={24} sm={6}>
                                 <div><strong>Chi phí dự kiến:</strong></div>
                                 <p>
                                     {new Intl.NumberFormat('vi-VN', {
                                         style: 'currency',
                                         currency: 'VND',
                                     }).format(selectedPlan.proposedCost || 0)}
+                                </p>
+                            </Col>
+                            <Col xs={24} sm={6}>
+                                <div><strong>Ngày hoàn thành:</strong></div>
+                                <p>
+                                    {selectedPlan.completionDeadline
+                                        ? dayjs(selectedPlan.completionDeadline).format('DD/MM/YYYY')
+                                        : '-'}
                                 </p>
                             </Col>
                         </Row>
@@ -345,58 +431,22 @@ export default function PurchasePlanPage() {
                         {selectedPlan.branchDetails && selectedPlan.branchDetails.length > 0 ? (
                             <Table
                                 dataSource={selectedPlan.branchDetails}
+                                scroll={{ x: 'max-content' }}
+                                size="small"
                                 columns={[
-                                    {
-                                        title: 'Chi nhánh',
-                                        dataIndex: 'branchName',
-                                        key: 'branchName',
-                                    },
-                                    {
-                                        title: 'Nhãn hiệu',
-                                        dataIndex: 'manufacturer',
-                                        key: 'manufacturer',
-                                        render: (v) => v || '-',
-                                    },
-                                    {
-                                        title: 'Số chỗ',
-                                        dataIndex: 'seats',
-                                        key: 'seats',
-                                        render: (v) => v ? `${v} chỗ` : '-',
-                                    },
-                                    {
-                                        title: 'Số lượng',
-                                        dataIndex: 'proposedQuantity',
-                                        key: 'proposedQuantity',
-                                    },
-                                    {
-                                        title: 'Đơn giá',
-                                        dataIndex: 'unitPrice',
-                                        key: 'unitPrice',
-                                        render: (price) =>
-                                            new Intl.NumberFormat('vi-VN', {
-                                                style: 'currency',
-                                                currency: 'VND',
-                                            }).format(price),
-                                    },
-                                    {
-                                        title: 'Thành tiền',
-                                        dataIndex: 'totalPrice',
-                                        key: 'totalPrice',
-                                        render: (_, record) =>
-                                            new Intl.NumberFormat('vi-VN', {
-                                                style: 'currency',
-                                                currency: 'VND',
-                                            }).format(
-                                                (record.proposedQuantity || 0) * (record.unitPrice || 0)
-                                            ),
-                                    },
-                                    {
-                                        title: 'Ngày yêu cầu',
-                                        dataIndex: 'requestedDate',
-                                        key: 'requestedDate',
-                                        render: (date) =>
-                                            date ? dayjs(date).format('DD/MM/YYYY') : '-',
-                                    },
+                                    { title: 'Chi nhánh', dataIndex: 'proposerBranchName', key: 'proposerBranchName', width: 100, render: (v) => v || '-' },
+                                    { title: 'Nhãn hiệu', dataIndex: 'manufacturer', key: 'manufacturer', width: 90, render: (v) => v || '-' },
+                                    { title: 'Phiên bản xe', dataIndex: 'version', key: 'version', width: 110, render: (v) => v || '-' },
+                                    { title: 'Số chỗ', dataIndex: 'seats', key: 'seats', width: 70, render: (v) => v ? `${v} chỗ` : '-' },
+                                    { title: 'SL', dataIndex: 'proposedQuantity', key: 'proposedQuantity', width: 50, align: 'center' },
+                                    { title: 'P.Thức', dataIndex: 'acquisitionMethod', key: 'acquisitionMethod', width: 80, render: (v) => { if (v === 'Ownership') return 'Mua đứt'; if (v === 'Lease') return 'Thuê'; if (v === 'Finance') return 'Thuê TC'; return '-'; } },
+                                    { title: 'Thuế ĐK', dataIndex: 'registrationTax', width: 110, render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                    { title: 'Phí ĐB', dataIndex: 'roadMaintenanceFee', width: 110, render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                    { title: 'Phí Biển', dataIndex: 'licensePlateFee', width: 110, render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                    { title: 'Bảo hiểm', dataIndex: 'insuranceFee', width: 110, render: v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0) },
+                                    { title: 'Đơn giá', dataIndex: 'unitPrice', key: 'unitPrice', width: 120, render: (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0) },
+                                    { title: 'Thành tiền', key: 'totalPrice', width: 130, render: (_, r) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((r.proposedQuantity || 0) * (r.unitPrice || 0)) },
+                                    { title: 'Ngày yêu cầu', dataIndex: 'requestedDate', key: 'requestedDate', width: 110, render: (date) => date ? new Date(date).toLocaleDateString('vi-VN') : '-' },
                                 ]}
                                 pagination={false}
                                 rowKey="branchId"
@@ -415,6 +465,7 @@ export default function PurchasePlanPage() {
                     plan={selectedPlan}
                     onClose={handleModalClose}
                     onSuccess={handleReceptionCreated}
+                    readOnly={isReadOnly}
                 />
             )}
 
@@ -433,7 +484,7 @@ export default function PurchasePlanPage() {
                 ]}
             >
                 <Alert
-                    message="Không thể tạo xe mới"
+                    title="Không thể tạo xe mới"
                     description={paymentErrorMsg}
                     type="error"
                     showIcon
@@ -441,6 +492,14 @@ export default function PurchasePlanPage() {
                 />
                 <p>Bạn có muốn hoàn tác lại quá trình đối chiếu để Operator nhập lại thông tin đúng không?</p>
             </Modal>
+            {/* Modal Xác nhận Thanh toán của Kế toán (Mới) */}
+            <ConfirmPaymentModal
+                open={confirmModalOpen}
+                proposal={selectedProposalForConfirm}
+                onCancel={() => setConfirmModalOpen(false)}
+                onSuccess={handleConfirmSuccess}
+                readOnly={isReadOnly}
+            />
         </div>
     );
 }

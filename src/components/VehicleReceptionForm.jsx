@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
@@ -14,309 +14,737 @@ import {
   Divider,
   Alert,
   Space,
+  Tag,
+  DatePicker,
+  Select,
+  InputNumber,
+  notification,
+  Empty,
+  Typography
 } from 'antd';
 import {
-  InboxOutlined,
+  PlusOutlined,
+  DeleteOutlined,
   UploadOutlined,
+  CheckCircleOutlined,
+  CarOutlined,
+  FileSearchOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import receptionApi from '../api/receptionApi';
 
 const { TextArea } = Input;
-const { Dragger } = Upload;
+const { Title, Text } = Typography;
 
 export default function VehicleReceptionForm({
   proposalId,
   plan,
   onClose,
   onSuccess,
+  readOnly = false
 }) {
   const [form] = Form.useForm();
+  const [messageApi, messageContextHolder] = message.useMessage();
+  const [notificationApi, notificationContextHolder] = notification.useNotification();
   const [loading, setLoading] = useState(false);
-  const [fileList, setFileList] = useState([]);
-  const [checkedItems, setCheckedItems] = useState({});
-  const [imageBase64, setImageBase64] = useState(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [receptionQuantities, setReceptionQuantities] = useState({});
 
-  // Kiểm tra xem có chậm hạn không
-  const getDateDelay = (requestedDate) => {
-    if (!requestedDate) return null;
-    const requested = dayjs(requestedDate);
-    const today = dayjs();
-    const diff = today.diff(requested, 'day');
-    return diff;
-  };
-
-  const checkHasDelay = () => {
-    if (plan?.branchDetails && plan.branchDetails.length > 0) {
-      const delay = getDateDelay(plan.branchDetails[0].requestedDate);
-      return delay && delay > 0;
-    }
-    return false;
-  };
-
-  const daysDelay = plan?.branchDetails?.[0]?.requestedDate
-    ? getDateDelay(plan.branchDetails[0].requestedDate)
-    : 0;
-
-  // ===== HANDLE FILE UPLOAD =====
-  const handleFileChange = ({ fileList: newFileList }) => {
-    setFileList(newFileList);
-
-    // Tự động đọc file và convert sang base64
-    if (newFileList.length > 0) {
-      const file = newFileList[0].originFileObj;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImageBase64(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const uploadProps = {
-    onRemove: () => {
-      setFileList([]);
-      setImageBase64(null);
-    },
-    beforeUpload: () => false, // Don't auto upload
-    maxCount: 1,
-    accept: 'image/*',
-  };
-
-  // ===== HANDLE CHECKBOX FOR BRANCH DETAILS =====
-  const handleCheckDetail = (detailKey, checked) => {
-    setCheckedItems({
-      ...checkedItems,
-      [detailKey]: checked,
+  // ===== GENERATE INITIAL VEHICLES =====
+  const generateVehicles = () => {
+    const vehicles = [];
+    selectedRowKeys.forEach(rowKey => {
+      const detail = plan.branchDetails.find(d => `${d.branchId}-${d.manufacturer}-${d.version}` === rowKey);
+      if (detail) {
+        const qty = receptionQuantities[rowKey] || 1;
+        for (let i = 1; i <= qty; i++) {
+          vehicles.push({
+            branchId: detail.branchId,
+            branchName: detail.branchName,
+            manufacturer: detail.manufacturer,
+            version: detail.version,
+            hasGsht: detail.hasGsht,
+            vehicleIndex: i,
+            totalForType: qty,
+            fuelNorm: detail.fuelNorm,
+            seats: detail.seats,
+            branchNotes: detail.branchNotes,
+            yearManufacture: dayjs().year(),
+            mileage: 0,
+            registrationExpirationDate: null,
+            insuranceExpirationDate: null,
+            badgeExpirationDate: null,
+          });
+        }
+      }
     });
+    form.setFieldsValue({ vehicles });
   };
 
-  // ===== VALIDATE FORM =====
-  const validateForm = () => {
-    const { licensePlate, chassisNumber, engineNumber } = form.getFieldsValue();
-
-    if (!licensePlate) {
-      message.error('Vui lòng nhập biển số xe');
-      return false;
+  useEffect(() => {
+    if (readOnly && plan?.receptions) {
+      const vehicles = plan.receptions.map((r, index) => ({
+        ...r,
+        vehicleIndex: index + 1,
+        registrationExpirationDate: r.registrationExpirationDate ? dayjs(r.registrationExpirationDate) : null,
+        insuranceExpirationDate: r.insuranceExpirationDate ? dayjs(r.insuranceExpirationDate) : null,
+        badgeExpirationDate: r.badgeExpirationDate ? dayjs(r.badgeExpirationDate) : null,
+        yearManufacture: r.yearManufacture,
+        mileage: r.mileage,
+        receiptImages: r.receiptImageUrl ? r.receiptImageUrl.split(';').map((url, idx) => ({
+          uid: `-${idx}`,
+          name: `image-${idx}`,
+          status: 'done',
+          url: url
+        })) : []
+      }));
+      form.setFieldsValue({ vehicles });
+    } else {
+      generateVehicles();
     }
+  }, [selectedRowKeys, receptionQuantities, readOnly, plan]);
 
-    if (!chassisNumber) {
-      message.error('Vui lòng nhập số VIN/Chassis');
-      return false;
-    }
+  const onSelectChange = (newSelectedRowKeys) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+    const newQty = { ...receptionQuantities };
+    newSelectedRowKeys.forEach(key => {
+      if (!newQty[key]) {
+        const detail = plan.branchDetails.find(d => `${d.branchId}-${d.manufacturer}-${d.version}` === key);
+        newQty[key] = (detail.proposedQuantity - detail.receivedQuantity) || 1;
+      }
+    });
+    setReceptionQuantities(newQty);
+  };
 
-    if (!engineNumber) {
-      message.error('Vui lòng nhập số máy');
-      return false;
-    }
+  const handleQtyChange = (key, val) => {
+    setReceptionQuantities({ ...receptionQuantities, [key]: val });
+  };
 
-    if (!imageBase64) {
-      message.error('Vui lòng tải lên ảnh chứng minh');
-      return false;
-    }
-
-    return true;
+  const normFile = (e) => {
+    if (Array.isArray(e)) return e;
+    return e?.fileList;
   };
 
   // ===== HANDLE SUBMIT =====
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
     try {
-      const { licensePlate, chassisNumber, engineNumber, notes } =
-        form.getFieldsValue();
+      const values = await form.validateFields();
+      if (!values.vehicles || values.vehicles.length === 0) {
+        messageApi.warning('Vui lòng chọn ít nhất một xe để đối chiếu');
+        return;
+      }
 
-      const payload = {
-        purchaseProposalId: proposalId,
-        branchId: plan?.branchDetails?.[0]?.branchId || 0,
-        licensePlate,
-        chassisNumber,
-        engineNumber,
-        receiptImageUrl: imageBase64,
-        notes,
-      };
+      setLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
 
-      const res = await receptionApi.create(payload);
+      for (const v of values.vehicles) {
+        const checkItems = v.checkItems || [];
+        const hasMainCheck = checkItems.includes('checkInfo') &&
+          checkItems.includes('checkVinChassis') &&
+          checkItems.includes('checkDocs');
 
-      if (res?.data?.isSuccess) {
-        message.success('Bản ghi đối chiếu được tạo thành công');
-        form.resetFields();
-        setFileList([]);
-        setImageBase64(null);
-        setCheckedItems({});
-        onSuccess?.();
-      } else {
-        message.error(res?.data?.message || 'Có lỗi xảy ra');
+        if (!hasMainCheck) {
+          notificationApi.error({ message: 'Thiếu thông tin', description: `Xe #${v.vehicleIndex}: Vui lòng tích đủ checklist cơ bản` });
+          setLoading(false);
+          return;
+        }
+        if (v.hasGsht && !checkItems.includes('checkImei')) {
+          notificationApi.error({ message: 'Lỗi Nghị định 10', description: `Xe #${v.vehicleIndex}: Vui lòng xác nhận IMEI GSHT` });
+          setLoading(false);
+          return;
+        }
+        if (v.seats >= 9 && !checkItems.includes('checkImei')) {
+          notificationApi.error({ message: 'Lỗi Nghị định 10', description: `Xe #${v.vehicleIndex}: Xe >= 9 chỗ bắt buộc xác nhận IMEI GSHT` });
+          setLoading(false);
+          return;
+        }
+        if (!v.receiptImages || v.receiptImages.length === 0) {
+          notificationApi.error({ message: 'Thiếu thông tin', description: `Xe #${v.vehicleIndex}: Thiếu ảnh minh chứng` });
+          setLoading(false);
+          return;
+        }
+
+        const base64Array = await Promise.all((v.receiptImages || []).map(async (f) => {
+          if (f.url) return f.url;
+          if (f.originFileObj) {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.readAsDataURL(f.originFileObj);
+            });
+          }
+          return '';
+        }));
+        const joinedImages = base64Array.filter(b => b).join(';');
+
+        const payload = {
+          purchaseProposalId: proposalId,
+          branchId: v.branchId,
+          licensePlate: v.licensePlate,
+          chassisNumber: v.chassisNumber,
+          engineNumber: v.engineNumber,
+          vin: v.vin,
+          telematicsImei: v.telematicsImei,
+          badgeType: v.badgeType || 'Chưa đăng ký phù hiệu',
+          fuelNorm: v.fuelNorm,
+          registrationExpirationDate: v.registrationExpirationDate ? v.registrationExpirationDate.format('YYYY-MM-DD') : null,
+          insuranceExpirationDate: v.insuranceExpirationDate ? v.insuranceExpirationDate.format('YYYY-MM-DD') : null,
+          badgeExpirationDate: v.badgeExpirationDate ? v.badgeExpirationDate.format('YYYY-MM-DD') : null,
+          receiptImageUrl: joinedImages,
+          notes: v.notes,
+          yearManufacture: v.yearManufacture,
+          mileage: v.mileage,
+        };
+
+        try {
+          const res = await receptionApi.create(payload);
+          if (res.status === 200 || res.status === 201) {
+            successCount++;
+            messageApi.open({
+              type: 'success',
+              content: `Xe #${v.vehicleIndex} (${v.licensePlate}): Lưu thành công`,
+              icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+            });
+          } else {
+            const errorMsg = res?.data?.message || `Lưu xe #${v.vehicleIndex} thất bại`;
+            notificationApi.error({ message: 'Lỗi lưu dữ liệu', description: errorMsg });
+            errorCount++;
+          }
+        } catch (error) {
+          const errMsg = error.response?.data?.message || error.message || "Lỗi kết nối API";
+          notificationApi.error({ message: 'Lỗi hệ thống', description: errMsg });
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        onSuccess?.(successCount, errorCount);
+      } else if (errorCount > 0) {
+        notificationApi.error({
+          message: 'Đối chiếu thất bại',
+          description: `Cả ${errorCount} bản ghi đều gặp lỗi.`,
+          placement: 'topRight'
+        });
       }
     } catch (error) {
-      message.error('Lỗi khi tạo bản ghi đối chiếu');
       console.error(error);
+      messageApi.error('Vui lòng kiểm tra lại thông tin nhập liệu');
     } finally {
       setLoading(false);
     }
   };
 
+  // ===== RENDER REVIEW CARD (For Read-Only Mode) =====
+  const renderReviewCard = (data, index) => {
+    // Robust data access (handle camelCase or PascalCase)
+    const getVal = (prop) => data?.[prop] || data?.[prop.charAt(0).toUpperCase() + prop.slice(1)];
+    
+    const licensePlate = getVal('licensePlate');
+    const vin = getVal('vin');
+    const version = getVal('version');
+    const chassisNo = getVal('chassisNumber');
+    const engineNo = getVal('engineNumber');
+    const imei = getVal('telematicsImei');
+    const fuelNorm = getVal('fuelNorm');
+    const regExp = getVal('registrationExpirationDate');
+    const insExp = getVal('insuranceExpirationDate');
+    const badgeType = getVal('badgeType');
+    const badgeExp = getVal('badgeExpirationDate');
+    const imageUrlStr = getVal('receiptImageUrl');
+    const notes = getVal('notes');
+    const yearMan = getVal('yearManufacture');
+    const mileage = getVal('mileage');
+
+    return (
+      <Card 
+        key={data.id || index} 
+        title={<span><FileSearchOutlined style={{ marginRight: 8, color: '#1890ff' }} /><b>BẢN GHI ĐỐI CHIẾU XE #{index + 1}</b></span>}
+        size="small" 
+        style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', borderLeft: '4px solid #1890ff' }}
+        extra={<Tag color="green">ĐÃ ĐỐI CHIẾU</Tag>}
+      >
+        <Row gutter={[24, 16]}>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Biển số xe</Text>
+            <div style={{ fontWeight: 'bold', fontSize: '17px', color: '#003a8c' }}>{licensePlate || '-'}</div>
+          </Col>
+          <Col span={10}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Số VIN</Text>
+            <div style={{ fontWeight: 500, fontSize: '15px' }}>{vin || '-'}</div>
+          </Col>
+          <Col span={8}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Phiên bản / Model</Text>
+            <div>{version || '-'}</div>
+          </Col>
+          <Col span={4}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Năm SX</Text>
+            <div style={{ fontWeight: 'bold' }}>{yearMan || '-'}</div>
+          </Col>
+          <Col span={4}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Số Km</Text>
+            <div style={{ fontWeight: 'bold' }}>{mileage?.toLocaleString() || '0'}</div>
+          </Col>
+        </Row>
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        <Row gutter={[24, 16]}>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Số khung</Text>
+            <div>{chassisNo || '-'}</div>
+          </Col>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Số máy</Text>
+            <div>{engineNo || '-'}</div>
+          </Col>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>IMEI GSHT</Text>
+            <div style={{ color: imei ? '#000' : '#bfbfbf' }}>{imei || 'Không có'}</div>
+          </Col>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Định mức NL</Text>
+            <div>{fuelNorm ? `${fuelNorm} L/100km` : '-'}</div>
+          </Col>
+        </Row>
+
+        <Row gutter={[24, 16]} style={{ marginTop: 12 }}>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Hạn đăng kiểm</Text>
+            <div>{regExp ? dayjs(regExp).format('DD/MM/YYYY') : '-'}</div>
+          </Col>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Hạn bảo hiểm</Text>
+            <div>{insExp ? dayjs(insExp).format('DD/MM/YYYY') : '-'}</div>
+          </Col>
+          <Col span={6}>
+             <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Loại phù hiệu</Text>
+             <div>{badgeType || '-'}</div>
+          </Col>
+          <Col span={6}>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Hạn phù hiệu</Text>
+            <div>{badgeExp ? dayjs(badgeExp).format('DD/MM/YYYY') : '-'}</div>
+          </Col>
+        </Row>
+
+        <div style={{ marginTop: 24, padding: '16px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+          <Row gutter={24}>
+            <Col span={12}>
+              <Title level={5} style={{ fontSize: '13px', marginBottom: 16 }}>TÌNH TRẠNG KIỂM TRA THỰC TẾ:</Title>
+              <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                  <span style={{ color: '#262626' }}>Thông tin Biển số & Cavet trùng khớp</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                  <span style={{ color: '#262626' }}>Số VIN, khung, máy khớp thực tế</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                  <span style={{ color: '#262626' }}>Hồ sơ, giấy tờ gốc đã thu đủ</span>
+                </div>
+                {imei && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+                    <span style={{ color: '#262626' }}>IMEI GSHT đã kích hoạt hệ thống</span>
+                  </div>
+                )}
+              </Space>
+              {notes && (
+                <div style={{ marginTop: 16 }}>
+                  <Text type="secondary" style={{ fontSize: '11px' }}>GHI CHÚ:</Text>
+                  <div style={{ color: '#595959', fontStyle: 'italic' }}>{notes}</div>
+                </div>
+              )}
+            </Col>
+            <Col span={12}>
+              <Text type="secondary" style={{ fontSize: '11px' }}>HÌNH ẢNH MINH CHỨNG:</Text>
+              {imageUrlStr ? (() => {
+                // Sửa lỗi split nhầm dấu chấm phẩy trong string base64
+                // Pattern: dấu ";" mà theo sau KHÔNG phải là "base64" (vì "data:image/png;base64," có dấu ;)
+                // Hoặc đơn giản là split theo pattern kết hợp ";data:"
+                const imageParts = imageUrlStr.split(/;(?=data:)/);
+                const firstImageUrl = imageParts[0] || "";
+                
+                return (
+                  <div style={{ marginTop: 8 }}>
+                    <img 
+                      src={firstImageUrl} 
+                      alt="receipt-evidence" 
+                      style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', borderRadius: 8, border: '1px solid #d9d9d9', background: '#fff' }} 
+                    />
+                  </div>
+                );
+              })() : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có ảnh" style={{ marginTop: 20 }} />
+              )}
+            </Col>
+          </Row>
+        </div>
+      </Card>
+    );
+  };
+
   return (
-    <Modal
-      title={`Bản ghi đối chiếu xe - Đề xuất #${proposalId}`}
-      open={true}
-      onCancel={onClose}
-      width={900}
-      footer={[
-        <Button key="cancel" onClick={onClose}>
-          Hủy
-        </Button>,
-        <Button
-          key="submit"
-          type="primary"
-          loading={loading}
-          onClick={handleSubmit}
-        >
-          Lưu bản ghi
-        </Button>,
-      ]}
-    >
-      <Form form={form} layout="vertical">
-        {/* Alert nếu chậm hạn */}
-        {checkHasDelay() && (
-          <Alert
-            message="⚠️ CẢNH BÁO"
-            description={`Xe đã chậm hạn ${daysDelay} ngày so với ngày yêu cầu (${
-              plan.branchDetails?.[0]?.requestedDate
-                ? dayjs(plan.branchDetails[0].requestedDate).format('DD/MM/YYYY')
-                : ''
-            })`}
-            type="warning"
-            showIcon
-            style={{ marginBottom: 20 }}
-          />
-        )}
+    <div className="vehicle-reception-form-container">
+      {messageContextHolder}
+      {notificationContextHolder}
 
-        {/* Thông tin chi nhánh */}
-        {plan?.branchDetails && plan.branchDetails.length > 0 && (
-          <Card style={{ marginBottom: 20 }} size="small">
-            <h4>Thông tin đề xuất mua</h4>
-            <Table
-              dataSource={plan.branchDetails}
-              columns={[
-                {
-                  title: 'Chi nhánh',
-                  dataIndex: 'branchName',
-                  key: 'branchName',
-                },
-                {
-                  title: 'Số lượng',
-                  dataIndex: 'proposedQuantity',
-                  key: 'proposedQuantity',
-                },
-                {
-                  title: 'Đơn giá',
-                  dataIndex: 'unitPrice',
-                  key: 'unitPrice',
-                  render: (price) =>
-                    new Intl.NumberFormat('vi-VN', {
-                      style: 'currency',
-                      currency: 'VND',
-                    }).format(price),
-                },
-                {
-                  title: 'Ngày yêu cầu',
-                  dataIndex: 'requestedDate',
-                  key: 'requestedDate',
-                  render: (date) =>
-                    date ? dayjs(date).format('DD/MM/YYYY') : '-',
-                },
-              ]}
-              pagination={false}
-              rowKey="branchId"
-              size="small"
-            />
-          </Card>
-        )}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CarOutlined style={{ color: '#1890ff', fontSize: '20px' }} />
+            <span style={{ fontWeight: 'bold' }}>
+              {readOnly ? `CHI TIẾT ĐỐI CHIẾU XE - ĐỀ XUẤT #${proposalId}` : `ĐỐI CHIẾU XE HÀNG LOẠT - ĐỀ XUẤT #${proposalId}`}
+            </span>
+          </div>
+        }
+        open={true}
+        onCancel={onClose}
+        width={1200}
+        centered
+        footer={readOnly ? [
+          <Button key="close" type="primary" onClick={onClose} size="large" style={{ width: 140 }}>Đóng</Button>
+        ] : [
+          <Button key="cancel" onClick={onClose}>Hủy</Button>,
+          <Button key="submit" type="primary" loading={loading} onClick={handleSubmit}>
+            Lưu toàn bộ {selectedRowKeys.length > 0 ? `(${Object.values(receptionQuantities).reduce((a, b) => a + b, 0)} xe)` : ''}
+          </Button>,
+        ]}
+      >
+        <div style={{ maxHeight: '75vh', overflowY: 'auto', padding: '0 12px' }}>
+          <div style={{ background: '#f0f5ff', padding: '16px 24px', borderRadius: '12px', border: '1px solid #adc6ff', marginBottom: 28 }}>
+            <Row gutter={24} align="middle">
+              <Col span={5}>
+                <Text type="secondary" style={{ fontSize: '12px' }}>Chi nhánh nhận</Text>
+                <div style={{ fontWeight: 'bold' }}>{plan?.branchDetails?.[0]?.branchName || '-'}</div>
+              </Col>
+              <Col span={8}>
+                <Text type="secondary" style={{ fontSize: '12px' }}>Nhãn hiệu & Phiên bản</Text>
+                <div style={{ fontWeight: 'bold' }}>{plan?.branchDetails?.[0]?.manufacturer} - {plan?.branchDetails?.[0]?.version}</div>
+              </Col>
+              <Col span={5}>
+                <Text type="secondary" style={{ fontSize: '12px' }}>Tiến độ bàn giao</Text>
+                <div>
+                  <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#52c41a' }}>{plan?.branchDetails?.[0]?.receivedQuantity || 0}</span>
+                  <span style={{ color: '#8c8c8c' }}> / {plan?.branchDetails?.[0]?.proposedQuantity || 0} Xe</span>
+                </div>
+              </Col>
+              <Col span={6} style={{ textAlign: 'right' }}>
+                 <Tag color="blue" style={{ padding: '4px 12px', borderRadius: '20px' }}>
+                    Sản phẩm mục tiêu: {plan?.branchDetails?.[0]?.manufacturer}
+                 </Tag>
+              </Col>
+            </Row>
+          </div>
 
-        <Divider />
+          {readOnly ? (
+            <div style={{ padding: '0 4px' }}>
+              <Alert
+                message={<b style={{ color: '#0050b3' }}>Thông báo đối soát</b>}
+                description="Dưới đây là toàn bộ thông tin chi tiết các xe đã được Operator tiếp nhận thực tế tại chi nhánh. Mọi dữ liệu ở chế độ chỉ xem."
+                type="info" showIcon icon={<InfoCircleOutlined />}
+                style={{ marginBottom: 24, borderRadius: 8 }}
+              />
+              {plan?.receptions && plan.receptions.length > 0 ? (
+                plan.receptions.map((item, idx) => renderReviewCard(item, idx))
+              ) : (
+                <Empty description="Chưa có bản ghi đối chiếu nào được thực thi." style={{ margin: '60px 0' }} />
+              )}
+            </div>
+          ) : (
+            <Form form={form} layout="vertical">
+              <Card title="1. Chọn dòng xe tiếp nhận" size="small" style={{ marginBottom: 20 }}>
+                <Table
+                  dataSource={plan?.branchDetails || []}
+                  rowKey={(r) => `${r.branchId}-${r.manufacturer}-${r.version}`}
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    {
+                      title: 'Lựa chọn đối chiếu',
+                      width: 150,
+                      align: 'center',
+                      render: (_, r) => {
+                        const rowKey = `${r.branchId}-${r.manufacturer}-${r.version}`;
+                        return (
+                          <Checkbox
+                            checked={selectedRowKeys.includes(rowKey)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                onSelectChange([...selectedRowKeys, rowKey]);
+                              } else {
+                                onSelectChange(selectedRowKeys.filter(k => k !== rowKey));
+                              }
+                            }}
+                          >
+                            Đối chiếu
+                          </Checkbox>
+                        );
+                      }
+                    },
+                    { title: 'Chi nhánh', dataIndex: 'branchName' },
+                    { title: 'Model', render: (_, r) => `${r.manufacturer} ${r.version || ''}` },
+                    { title: 'P.Thức', dataIndex: 'acquisitionMethod', render: (v) => v === 'Ownership' ? 'Mua đứt' : 'Thuê' },
+                    { title: 'Định mức NL', dataIndex: 'fuelNorm', render: (v) => v ? `${v} L/100km` : '-' },
+                    { title: 'GSHT', dataIndex: 'hasGsht', render: (v) => v ? 'Có' : 'Không' },
+                    { title: 'Số lượng mua', dataIndex: 'proposedQuantity' },
+                    { title: 'Đã nhận', render: (_, r) => `${r.receivedQuantity} / ${r.proposedQuantity}` },
+                    {
+                      title: 'Số lượng nhận',
+                      width: 120,
+                      render: (_, r) => {
+                        const rowKey = `${r.branchId}-${r.manufacturer}-${r.version}`;
+                        return (
+                          <InputNumber
+                            min={1}
+                            max={r.proposedQuantity - r.receivedQuantity}
+                            disabled={!selectedRowKeys.includes(rowKey)}
+                            value={receptionQuantities[rowKey] || 1}
+                            onChange={(val) => handleQtyChange(rowKey, val)}
+                          />
+                        );
+                      }
+                    },
+                  ]}
+                />
+              </Card>
 
-        <h4>Thông tin xe đã nhận</h4>
+              {(selectedRowKeys.length > 0) && (
+                <div style={{ background: '#f5f5f5', padding: 20, borderRadius: 8 }}>
+                  <h4 style={{ marginBottom: 20 }}>2. Nhập thông tin chi tiết từng xe</h4>
+                  <Form.List name="vehicles">
+                    {(fields) => (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                        {fields.map(({ key, name, ...restField }) => {
+                          const vehicleData = form.getFieldValue(['vehicles', name]);
+                          return (
+                            <Card
+                              key={key}
+                              size="small"
+                              title={
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                  <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
+                                    XE #{vehicleData?.vehicleIndex} - {vehicleData?.manufacturer} {vehicleData?.version || ''}
+                                  </Tag>
+                                  <Tag color="cyan">Chi nhánh: {vehicleData?.branchName}</Tag>
+                                </div>
+                              }
+                              style={{ border: '2px solid #1677ff', marginBottom: 16 }}
+                            >
+                              <div style={{ background: '#e6f4ff', padding: '8px 16px', borderRadius: 4, marginBottom: 16, border: '1px solid #91caff' }}>
+                                <Row gutter={16}>
+                                  <Col span={6}><strong>Định mức NL:</strong> {vehicleData?.fuelNorm} L/100km</Col>
+                                  <Col span={6}><strong>GSHT:</strong> {vehicleData?.hasGsht ? 'Cần kích hoạt' : 'Không yêu cầu'}</Col>
+                                  <Col span={12}><strong>Ghi chú đề xuất:</strong> {vehicleData?.branchNotes || 'Không có'}</Col>
+                                </Row>
+                              </div>
 
-        {/* Biển số */}
-        <Form.Item
-          label="Biển số xe"
-          name="licensePlate"
-          rules={[
-            { required: true, message: 'Vui lòng nhập biển số xe' },
-          ]}
-        >
-          <Input placeholder="VD: 29A-12345" />
-        </Form.Item>
+                              <Form.Item name={[name, 'branchId']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'branchName']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'manufacturer']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'version']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'vehicleIndex']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'hasGsht']} hidden><Checkbox /></Form.Item>
+                              <Form.Item name={[name, 'fuelNorm']} hidden><Input /></Form.Item>
+                              <Form.Item name={[name, 'seats']} hidden><Input /></Form.Item>
 
-        {/* VIN/Chassis */}
-        <Form.Item
-          label="Số VIN / Chassis"
-          name="chassisNumber"
-          rules={[
-            { required: true, message: 'Vui lòng nhập số VIN/Chassis' },
-          ]}
-        >
-          <Input placeholder="VD: XXXXXXXXXXXXXXXXX" />
-        </Form.Item>
+                              <Row gutter={16}>
+                                <Col span={6}>
+                                  <Form.Item 
+                                    {...restField} 
+                                    label="Biển số" 
+                                    name={[name, 'licensePlate']} 
+                                    rules={[
+                                      { required: true, message: 'Vui lòng nhập biển số' },
+                                      { 
+                                        pattern: /^[0-9]{2}[A-Z]{1,2}-[0-9]{3,5}(\.[0-9]{2})?$/, 
+                                        message: 'Biển số không đúng định dạng (VD: 29A-123.45)' 
+                                      }
+                                    ]}
+                                    normalize={(value) => value ? value.toUpperCase().replace(/\s/g, '') : value}
+                                  >
+                                    <Input placeholder="VD: 29A-123.45" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={6}>
+                                  <Form.Item 
+                                    {...restField} 
+                                    label="Số VIN" 
+                                    name={[name, 'vin']} 
+                                    rules={[
+                                      { required: true, message: 'Vui lòng nhập số VIN' },
+                                      { len: 17, message: 'Số VIN phải đủ 17 ký tự' },
+                                      { 
+                                        pattern: /^[A-HJ-NPR-Z0-9]{17}$/, 
+                                        message: 'Số VIN không hợp lệ (Không chứa I, O, Q)' 
+                                      }
+                                    ]}
+                                  >
+                                    <Input placeholder="17 ký tự chuẩn ISO" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={6}>
+                                  <Form.Item {...restField} label="Số khung" name={[name, 'chassisNumber']} rules={[{ required: true }]}>
+                                    <Input title="Số khung" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={6}>
+                                  <Form.Item {...restField} label="Số máy" name={[name, 'engineNumber']} rules={[{ required: true }]}>
+                                    <Input title="Số máy" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={4}>
+                                  <Form.Item {...restField} label="Năm SX" name={[name, 'yearManufacture']} rules={[{ required: true }]}>
+                                    <InputNumber min={1900} max={2100} style={{ width: '100%' }} />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={4}>
+                                  <Form.Item {...restField} label="Số Km" name={[name, 'mileage']} rules={[{ required: true }]}>
+                                    <InputNumber min={0} style={{ width: '100%' }} />
+                                  </Form.Item>
+                                </Col>
+                              </Row>
 
-        {/* Số máy */}
-        <Form.Item
-          label="Số máy"
-          name="engineNumber"
-          rules={[
-            { required: true, message: 'Vui lòng nhập số máy' },
-          ]}
-        >
-          <Input placeholder="VD: XXXXXXXXX" />
-        </Form.Item>
+                              <Row gutter={16}>
+                                <Col span={6}>
+                                  <Form.Item {...restField} label="Loại phù hiệu" name={[name, 'badgeType']}>
+                                    <Select options={[{ value: 'Xe hợp đồng', label: 'Xe hợp đồng' }, { value: 'Xe du lịch', label: 'Xe du lịch' }]} />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={10}>
+                                  <Form.Item
+                                    {...restField}
+                                    label={`IMEI GSHT ${(vehicleData?.hasGsht || (vehicleData?.seats >= 9)) ? '(Bắt buộc)' : '(Tùy chọn)'}`}
+                                    name={[name, 'telematicsImei']}
+                                    rules={[
+                                      { required: vehicleData?.hasGsht || (vehicleData?.seats >= 9), message: 'Vui lòng nhập IMEI' },
+                                      { pattern: /^\d{15}$/, message: 'IMEI phải là 15 chữ số' }
+                                    ]}
+                                  >
+                                    <Input placeholder="15 chữ số" />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={8}>
+                                  <Form.Item {...restField} label="Ghi chú" name={[name, 'notes']}>
+                                    <Input />
+                                  </Form.Item>
+                                </Col>
+                              </Row>
 
-        {/* Upload ảnh */}
-        <Form.Item
-          label="Ảnh chứng minh (Biển số, VIN, Chassis...)"
-          required
-        >
-          <Dragger {...uploadProps} fileList={fileList} onChange={handleFileChange}>
-            <p className="ant-upload-drag-icon">
-              <InboxOutlined />
-            </p>
-            <p className="ant-upload-text">
-              Nhấp hoặc kéo ảnh vào khu vực này
-            </p>
-            <p className="ant-upload-hint">
-              Hỗ trợ ảnh JPG, PNG, GIF. Kích thước tối đa 5MB
-            </p>
-          </Dragger>
-        </Form.Item>
+                              <Row gutter={16}>
+                                <Col span={8}>
+                                  <Form.Item 
+                                    {...restField} 
+                                    label="Hạn đăng kiểm" 
+                                    name={[name, 'registrationExpirationDate']} 
+                                    rules={[
+                                      { required: true, message: 'Vui lòng chọn ngày' },
+                                      () => ({
+                                        validator(_, value) {
+                                          if (!value || value.isAfter(dayjs())) {
+                                            return Promise.resolve();
+                                          }
+                                          return Promise.reject(new Error('Ngày hết hạn phải ở tương lai'));
+                                        },
+                                      }),
+                                    ]}
+                                  >
+                                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={8}>
+                                  <Form.Item 
+                                    {...restField} 
+                                    label="Hạn bảo hiểm" 
+                                    name={[name, 'insuranceExpirationDate']} 
+                                    rules={[
+                                      { required: true, message: 'Vui lòng chọn ngày' },
+                                      () => ({
+                                        validator(_, value) {
+                                          if (!value || value.isAfter(dayjs())) {
+                                            return Promise.resolve();
+                                          }
+                                          return Promise.reject(new Error('Ngày hết hạn phải ở tương lai'));
+                                        },
+                                      }),
+                                    ]}
+                                  >
+                                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                                  </Form.Item>
+                                </Col>
+                                <Col span={8}>
+                                  <Form.Item 
+                                    {...restField} 
+                                    label="Hạn phù hiệu" 
+                                    name={[name, 'badgeExpirationDate']}
+                                    rules={[
+                                      () => ({
+                                        validator(_, value) {
+                                          if (!value || value.isAfter(dayjs())) {
+                                            return Promise.resolve();
+                                          }
+                                          return Promise.reject(new Error('Ngày hết hạn phải ở tương lai'));
+                                        },
+                                      }),
+                                    ]}
+                                  >
+                                    <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+                                  </Form.Item>
+                                </Col>
+                              </Row>
 
-        {/* Ghi chú */}
-        <Form.Item
-          label="Ghi chú thêm"
-          name="notes"
-        >
-          <TextArea
-            rows={3}
-            placeholder="Mô tả tình trạng xe, hư hại..."
-          />
-        </Form.Item>
+                              <Divider style={{ margin: '12px 0' }} dashed />
 
-        {/* Preview ảnh */}
-        {imageBase64 && (
-          <Form.Item label="Xem trước ảnh">
-            <img
-              src={imageBase64}
-              alt="preview"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '300px',
-                border: '1px solid #ddd',
-                padding: '10px',
-              }}
-            />
-          </Form.Item>
-        )}
-      </Form>
-    </Modal>
+                              <Row gutter={24}>
+                                <Col span={12}>
+                                  <h5>Checklist đối chiếu</h5>
+                                  <Form.Item name={[name, 'checkItems']} {...restField}>
+                                    <Checkbox.Group style={{ width: '100%' }}>
+                                      <Space direction="vertical">
+                                        <Checkbox value="checkInfo">Biển số & Cavet trùng khớp</Checkbox>
+                                        <Checkbox value="checkVinChassis">VIN & Khung máy trùng khớp</Checkbox>
+                                        <Checkbox value="checkDocs">Đủ giấy tờ bàn giao</Checkbox>
+                                        {(vehicleData?.hasGsht || vehicleData?.seats >= 9) && (
+                                          <Checkbox value="checkImei" style={{ color: 'red' }}>Đã kích hoạt IMEI GSHT (NĐ10)</Checkbox>
+                                        )}
+                                      </Space>
+                                    </Checkbox.Group>
+                                  </Form.Item>
+                                </Col>
+                                <Col span={12}>
+                                  <h5>Ảnh minh chứng (tối đa 10 ảnh)</h5>
+                                  <Form.Item
+                                    name={[name, 'receiptImages']}
+                                    valuePropName="fileList"
+                                    getValueFromEvent={normFile}
+                                  >
+                                    <Upload
+                                      listType="picture-card"
+                                      multiple={true}
+                                      maxCount={10}
+                                      beforeUpload={() => false}
+                                    >
+                                      <PlusOutlined />
+                                      <div style={{ marginTop: 8 }}>Tải ảnh</div>
+                                    </Upload>
+                                  </Form.Item>
+                                </Col>
+                              </Row>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Form.List>
+                </div>
+              )}
+            </Form>
+          )}
+        </div>
+      </Modal>
+    </div>
   );
 }
