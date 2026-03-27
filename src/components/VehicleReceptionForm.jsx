@@ -202,11 +202,6 @@ export default function VehicleReceptionForm({
           const res = await receptionApi.create(payload);
           if (res.status === 200 || res.status === 201) {
             successCount++;
-            messageApi.open({
-              type: 'success',
-              content: `Xe #${v.vehicleIndex} (${v.licensePlate}): Lưu thành công`,
-              icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
-            });
           } else {
             const errorMsg = res?.data?.message || `Lưu xe #${v.vehicleIndex} thất bại`;
             notificationApi.error({ message: 'Lỗi lưu dữ liệu', description: errorMsg });
@@ -220,6 +215,8 @@ export default function VehicleReceptionForm({
       }
 
       if (successCount > 0) {
+        // Thông báo nhanh trước khi đóng modal
+        message.success(`Đã lưu thành công ${successCount} xe.`);
         onSuccess?.(successCount, errorCount);
       } else if (errorCount > 0) {
         notificationApi.error({
