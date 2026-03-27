@@ -50,6 +50,22 @@ export default function AccessoryPurchaseRequestDetailPage() {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
 
+  const validateUniqueAccessory = (currentIndex) => ({
+    validator: (_, value) => {
+      if (!value) {
+        return Promise.resolve();
+      }
+
+      const details = form.getFieldValue('details') || [];
+      const duplicateCount = details.filter((item, index) => index !== currentIndex && item?.accessoryId === value).length;
+      if (duplicateCount > 0) {
+        return Promise.reject(new Error('Phụ kiện đã tồn tại ở dòng khác'));
+      }
+
+      return Promise.resolve();
+    },
+  });
+
   useEffect(() => {
     const loadBaseData = async () => {
       try {
@@ -138,14 +154,20 @@ export default function AccessoryPurchaseRequestDetailPage() {
   const handleSave = async (values) => {
     setSaving(true);
     try {
+      const detailItems = values.details || [];
+      if (detailItems.length === 0) {
+        message.error('Phiếu đề xuất phải có ít nhất một dòng phụ kiện');
+        return;
+      }
+
       const payload = {
         branchId: values.branchId,
         notes: values.notes,
-        details: (values.details || []).map((item) => ({
+        details: detailItems.map((item) => ({
           accessoryId: item.accessoryId,
           requestedQuantity: item.requestedQuantity,
           estimatedUnitPrice: item.estimatedUnitPrice ?? null,
-          notes: item.notes || null,
+          notes: item.notes?.trim() || null,
         })),
       };
 
@@ -286,7 +308,10 @@ export default function AccessoryPurchaseRequestDetailPage() {
                       key={`accessory-${field.key}`}
                       name={[field.name, 'accessoryId']}
                       label="Phụ kiện"
-                      rules={[{ required: true, message: 'Vui lòng chọn phụ kiện' }]}
+                      rules={[
+                        { required: true, message: 'Vui lòng chọn phụ kiện' },
+                        validateUniqueAccessory(field.name),
+                      ]}
                     >
                       <Select showSearch optionFilterProp="label" options={accessoryOptions} disabled={!editable} />
                     </Form.Item>
@@ -309,7 +334,15 @@ export default function AccessoryPurchaseRequestDetailPage() {
                       </Form.Item>
                     )}
 
-                    <Form.Item key={`price-${field.key}`} name={[field.name, 'estimatedUnitPrice']} label="Đơn giá ước tính">
+                    <Form.Item
+                      key={`price-${field.key}`}
+                      name={[field.name, 'estimatedUnitPrice']}
+                      label="Đơn giá ước tính"
+                      rules={[
+                        { required: true, message: 'Vui lòng nhập đơn giá ước tính' },
+                        { type: 'number', min: 0, message: 'Đơn giá ước tính không được âm' },
+                      ]}
+                    >
                       <InputNumber min={0} style={{ width: '100%' }} disabled={!editable} />
                     </Form.Item>
 

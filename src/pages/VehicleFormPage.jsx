@@ -226,6 +226,11 @@ export default function VehicleFormPage() {
       };
 
       if (isEdit) {
+        delete payload.status;
+        delete payload.currentDriverId;
+      }
+
+      if (isEdit) {
         await vehicleApi.update(id, payload);
         message.success('Cập nhật xe thành công');
       } else {
@@ -317,7 +322,7 @@ export default function VehicleFormPage() {
             <Form.Item name="mileage" label={<span>Số km {isDisabled('mileage') ? lockIcon : null}</span>}>
               <InputNumber min={0} style={{ width: '100%' }} placeholder="0" disabled={isDisabled('mileage')} />
             </Form.Item>
-            <Form.Item name="status" label="Trạng thái">
+            <Form.Item name="status" label="Trạng thái" hidden={isEdit}>
               <Select
                 disabled={isDisabled('status')}
                 options={[
@@ -328,7 +333,7 @@ export default function VehicleFormPage() {
                 ]}
               />
             </Form.Item>
-            <Form.Item name="currentDriverId" label={<span>Tài xế {isDisabled('currentDriverId') ? lockIcon : null}</span>}>
+            <Form.Item name="currentDriverId" label={<span>Tài xế {isDisabled('currentDriverId') ? lockIcon : null}</span>} hidden={isEdit}>
               <Select placeholder="Chọn tài xế" disabled={isDisabled('currentDriverId')} showSearch optionFilterProp="label" options={driverOptions} allowClear />
             </Form.Item>
           </div>
