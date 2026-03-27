@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Badge, Button, Empty, Select, Spin, Table, Tabs, Tag, Typography } from "antd"
+import { Badge, Button, Empty, Modal, Select, Spin, Table, Tabs, Tag, Typography } from "antd"
 import toast from "react-hot-toast"
 import StartTripModal from "../components/StartTripModal"
 import EndTripModal from "../components/EndTripModal"
@@ -103,6 +103,19 @@ export default function TripLogsPage() {
     }, [])
 
     const handleStartTrip = (transfer) => {
+        // Check if today is before the planned departure date
+        if (transfer.plannedDepartureDate) {
+            const today = new Date(); today.setHours(0,0,0,0)
+            const planned = new Date(transfer.plannedDepartureDate)
+            const plannedDay = new Date(planned.getFullYear(), planned.getMonth(), planned.getDate())
+            if (today < plannedDay) {
+                Modal.warning({
+                    title: "Chưa đến ngày điều chuyển",
+                    content: `Ngày khởi hành dự kiến là ${planned.toLocaleDateString("vi-VN")}. Vui lòng chờ đến ngày dự kiến để bắt đầu chuyến.`,
+                })
+                return
+            }
+        }
         setSelectedTransfer(transfer)
         setStartModalOpen(true)
     }
