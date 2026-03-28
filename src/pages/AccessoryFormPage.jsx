@@ -19,6 +19,16 @@ export default function AccessoryFormPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const requireTrimmedText = (label) => ({
+    validator: (_, value) => {
+      if (typeof value !== 'string' || !value.trim()) {
+        return Promise.reject(new Error(`Vui lòng nhập ${label}`));
+      }
+
+      return Promise.resolve();
+    },
+  });
+
   useEffect(() => {
     if (!isEdit) {
       return;
@@ -34,8 +44,6 @@ export default function AccessoryFormPage() {
           name: payload.name,
           type: payload.type,
           minimumStock: payload.minimumStock,
-          unitPrice: payload.unitPrice,
-          imageUrl: payload.imageUrl,
           isActive: payload.isActive,
         });
       } catch (error) {
@@ -60,9 +68,7 @@ export default function AccessoryFormPage() {
         code: values.code?.trim(),
         name: values.name?.trim(),
         type: values.type,
-        minimumStock: values.minimumStock ?? null,
-        unitPrice: values.unitPrice ?? null,
-        imageUrl: values.imageUrl?.trim() || null,
+        minimumStock: values.minimumStock,
         isActive: values.isActive ?? true,
       };
 
@@ -103,7 +109,10 @@ export default function AccessoryFormPage() {
           <Form.Item
             name="code"
             label="Mã phụ kiện"
-            rules={[{ required: true, message: 'Vui lòng nhập mã phụ kiện' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập mã phụ kiện' },
+              requireTrimmedText('mã phụ kiện'),
+            ]}
           >
             <Input maxLength={50} />
           </Form.Item>
@@ -111,7 +120,10 @@ export default function AccessoryFormPage() {
           <Form.Item
             name="name"
             label="Tên phụ kiện"
-            rules={[{ required: true, message: 'Vui lòng nhập tên phụ kiện' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên phụ kiện' },
+              requireTrimmedText('tên phụ kiện'),
+            ]}
           >
             <Input maxLength={200} />
           </Form.Item>
@@ -124,16 +136,15 @@ export default function AccessoryFormPage() {
             <Select options={ACCESSORY_TYPE_OPTIONS} />
           </Form.Item>
 
-          <Form.Item name="minimumStock" label="Tồn kho tối thiểu mặc định">
+          <Form.Item
+            name="minimumStock"
+            label="Tồn kho tối thiểu mặc định"
+            rules={[
+              { required: true, message: 'Vui lòng nhập tồn kho tối thiểu mặc định' },
+              { type: 'number', min: 0, message: 'Tồn kho tối thiểu mặc định phải lớn hơn hoặc bằng 0' },
+            ]}
+          >
             <InputNumber style={{ width: '100%' }} min={0} />
-          </Form.Item>
-
-          <Form.Item name="unitPrice" label="Đơn giá tham chiếu">
-            <InputNumber style={{ width: '100%' }} min={0} />
-          </Form.Item>
-
-          <Form.Item name="imageUrl" label="URL hình ảnh">
-            <Input maxLength={500} placeholder="https://..." />
           </Form.Item>
 
           <Form.Item name="isActive" label="Kích hoạt" valuePropName="checked">

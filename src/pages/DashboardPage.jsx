@@ -74,7 +74,7 @@ export default function DashboardPage() {
     { title: 'Mã', dataIndex: 'id', key: 'id', render: (id) => `#${id}` },
     { title: 'Loại', dataIndex: 'maintenanceType', key: 'type', render: (v) => TYPE_VI[v] || v },
     { title: 'Mô tả', dataIndex: 'description', key: 'desc', render: (v) => v || '—' },
-    { title: 'Chi phí ước tính', dataIndex: 'estimatedCost', key: 'cost', render: (v) => v ? v.toLocaleString('vi-VN') + ' đ' : '—' },
+    { title: 'Chi phí ước tính ', dataIndex: 'estimatedCost', key: 'cost', render: (v) => v ? v.toLocaleString('vi-VN') + ' đ' : '—' },
     { title: 'Trạng thái', dataIndex: 'status', key: 'status', render: (s) => <Tag color={STATUS_COLOR[s] || 'default'}>{STATUS_VI[s] || s}</Tag> },
   ];
 

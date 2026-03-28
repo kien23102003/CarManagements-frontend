@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, Button, Card, DatePicker, Form, Input, InputNumber, Select, Spin, message } from 'antd';
+import { App, Alert, Button, Card, DatePicker, Form, Input, InputNumber, Select, Spin } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import maintenanceApi from '../api/maintenanceApi';
@@ -20,7 +20,8 @@ const normalizeMaintenanceType = (type) => NORMALIZED_MAINTENANCE_TYPE[type] || 
 
 export default function MaintenanceFormPage() {
   const { id } = useParams();
-  const isEdit = !!id;
+  const isEdit = Boolean(id);
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,7 +44,7 @@ export default function MaintenanceFormPage() {
       const list = (data.data || data || []).filter((vehicle) => vehicle.status !== 'Disposed');
       setVehicles(list);
     } catch {
-      // ignore
+      setVehicles([]);
     }
   };
 
@@ -64,7 +65,7 @@ export default function MaintenanceFormPage() {
       if (item.vehicleId) {
         const option = {
           value: item.vehicleId,
-          label: `${item.vehicleLicensePlate || 'Khong co bien so'} - ${item.vehicleModelName || 'Khong ro loai xe'}`,
+          label: `${item.vehicleLicensePlate || 'Không có biển số'} - ${item.vehicleModelName || 'Không rõ loại xe'}`,
           status: item.vehicleStatus,
         };
 
@@ -72,7 +73,7 @@ export default function MaintenanceFormPage() {
         setSelectedVehicle(option);
       }
     } catch {
-      message.error('Khong the tai du lieu');
+      message.error('Không thể tải dữ liệu');
       navigate('/maintenance');
     } finally {
       setLoading(false);
@@ -94,7 +95,7 @@ export default function MaintenanceFormPage() {
 
     try {
       await vehicleApi.update(vehicleId, { status: 'Maintenance' });
-      message.success('Da chuyen xe sang trang thai dang bao tri');
+      message.success('Đã chuyển xe sang trạng thái đang bảo trì');
 
       await loadVehicles();
       setSelectedVehicle((prev) => (prev ? { ...prev, status: 'Maintenance' } : prev));
@@ -102,7 +103,7 @@ export default function MaintenanceFormPage() {
         prev && prev.value === vehicleId ? { ...prev, status: 'Maintenance' } : prev
       ));
     } catch (err) {
-      message.error(err.response?.data?.message || 'Khong the chuyen xe sang trang thai bao tri');
+      message.error(err.response?.data?.message || 'Không thể chuyển xe sang trạng thái bảo trì');
     } finally {
       setUpdatingVehicleStatus(false);
     }
@@ -111,7 +112,7 @@ export default function MaintenanceFormPage() {
   const handleSubmit = async (values) => {
     const vehicle = vehicles.find((item) => item.id === values.vehicleId) || selectedVehicle;
     if (!isEdit && !MAINTENANCE_STATUSES.has(vehicle?.status)) {
-      message.warning('Xe phai o trang thai dang bao tri truoc khi tao phieu');
+      message.warning('Xe phải ở trạng thái đang bảo trì trước khi tạo phiếu');
       return;
     }
 
@@ -127,15 +128,15 @@ export default function MaintenanceFormPage() {
         delete payload.vehicleId;
         delete payload.requestDate;
         await maintenanceApi.update(id, payload);
-        message.success('Cap nhat thanh cong');
+        message.success('Cập nhật thành công');
       } else {
         await maintenanceApi.create(payload);
-        message.success('Tao yeu cau thanh cong');
+        message.success('Tạo yêu cầu thành công');
       }
 
       navigate('/maintenance');
     } catch (err) {
-      message.error(err.response?.data?.message || 'Co loi');
+      message.error(err.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
       setSaving(false);
     }
@@ -164,34 +165,52 @@ export default function MaintenanceFormPage() {
   return (
     <div style={{ maxWidth: 800 }}>
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/maintenance')} style={{ marginBottom: 16 }}>
-        Quay lai
+        Quay lại
       </Button>
-      <h2>{isEdit ? 'Cap nhat yeu cau bao tri' : 'Tao yeu cau bao tri'}</h2>
+      <h2>{isEdit ? 'Cập nhật yêu cầu bảo trì' : 'Tạo yêu cầu bảo trì'}</h2>
       <Card style={{ borderRadius: 12, marginTop: 16 }}>
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ maintenanceType: 'Periodic' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            <Form.Item name="vehicleId" label="Xe" rules={[{ required: true, message: 'Vui long chon xe' }]}>
+            <Form.Item name="vehicleId" label="Xe" rules={[{ required: true, message: 'Vui lòng chọn xe' }]}>
               <Select
                 disabled={isEdit}
                 showSearch
-                placeholder="Tim va chon xe..."
+                placeholder="Tìm và chọn xe..."
                 optionFilterProp="label"
                 options={vehicleOptions}
                 onChange={handleVehicleChange}
               />
             </Form.Item>
-            <Form.Item name="maintenanceType" label="Loai bao tri" rules={[{ required: true }]}>
+
+            <Form.Item
+              name="maintenanceType"
+              label="Loại bảo trì"
+              rules={[{ required: true, message: 'Vui lòng chọn loại bảo trì' }]}
+            >
               <Select
                 options={[
-                  { value: 'Periodic', label: 'Dinh ky' },
-                  { value: 'Breakdown', label: 'Sua chua / hong hoc' },
+                  { value: 'Periodic', label: 'Định kỳ' },
+                  { value: 'Breakdown', label: 'Sửa chữa / hỏng hóc' },
                 ]}
               />
             </Form.Item>
-            <Form.Item name="requestDate" label="Ngay yeu cau">
-              <DatePicker disabled={isEdit} style={{ width: '100%' }} format="YYYY-MM-DD" placeholder="Chon ngay" />
+
+            <Form.Item
+              name="requestDate"
+              label="Ngày yêu cầu"
+              rules={[{ required: true, message: 'Vui lòng chọn ngày yêu cầu' }]}
+            >
+              <DatePicker disabled={isEdit} style={{ width: '100%' }} format="YYYY-MM-DD" placeholder="Chọn ngày" />
             </Form.Item>
-            <Form.Item name="estimatedCost" label="Chi phi uoc tinh (VND)">
+
+            <Form.Item
+              name="estimatedCost"
+              label="Chi phí ước tính (VND)"
+              rules={[
+                { required: true, message: 'Vui lòng nhập chi phí ước tính' },
+                { type: 'number', min: 0, message: 'Chi phí ước tính phải lớn hơn hoặc bằng 0' },
+              ]}
+            >
               <InputNumber
                 min={0}
                 style={{ width: '100%' }}
@@ -206,26 +225,26 @@ export default function MaintenanceFormPage() {
               showIcon
               type="warning"
               style={{ marginBottom: 16 }}
-              message="Xe chua o trang thai dang bao tri"
+              message="Xe chưa ở trạng thái đang bảo trì"
               description={(
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span>Can chuyen xe sang trang thai bao tri truoc khi tao phieu bao tri.</span>
+                  <span>Cần chuyển xe sang trạng thái bảo trì trước khi tạo phiếu bảo trì.</span>
                   <Button type="primary" onClick={handleMarkVehicleMaintenance} loading={updatingVehicleStatus}>
-                    Chuyen sang bao tri
+                    Chuyển sang bảo trì
                   </Button>
                 </div>
               )}
             />
           )}
 
-          <Form.Item name="description" label="Mo ta">
-            <Input.TextArea rows={3} placeholder="Mo ta chi tiet yeu cau bao tri..." />
+          <Form.Item name="description" label="Mô tả">
+            <Input.TextArea rows={3} placeholder="Mô tả chi tiết yêu cầu bảo trì..." />
           </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-            <Button onClick={() => navigate('/maintenance')}>Huy</Button>
+            <Button onClick={() => navigate('/maintenance')}>Hủy</Button>
             <Button type="primary" htmlType="submit" loading={saving} disabled={!canSubmit || updatingVehicleStatus}>
-              {isEdit ? 'Cap nhat' : 'Tao moi'}
+              {isEdit ? 'Cập nhật' : 'Tạo mới'}
             </Button>
           </div>
         </Form>
