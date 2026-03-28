@@ -1,6 +1,7 @@
-import { useMemo, useState, useEffect } from 'react';
+﻿import { useMemo, useState, useEffect } from 'react';
 import { useAuth } from '../services/AuthContext';
 import userApi from '../api/userApi';
+import assetApi from '../api/assetApi';
 import {
   Card,
   Typography,
@@ -22,11 +23,17 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const normalizeRole = (role) => String(role || '').replace(/\s+/g, '').toLowerCase();
 
-const ROLE_OPTIONS = [
+const ADMIN_ROLE_OPTIONS = [
   { value: 'Operator', label: 'Nhân viên vận hành' },
   { value: 'BranchAssetAccountant', label: 'Kế toán quản lý tài sản' },
   { value: 'ExecutiveManagement', label: 'Ban điều hành' },
+  { value: 'Manager', label: 'Quản lý chi nhánh' },
   { value: 'Admin', label: 'Admin' },
+];
+
+const MANAGER_ROLE_OPTIONS = [
+  { value: 'Operator', label: 'Nhân viên vận hành' },
+  { value: 'BranchAssetAccountant', label: 'Kế toán quản lý tài sản' },
 ];
 
 export default function RegisterPage() {
@@ -34,6 +41,8 @@ export default function RegisterPage() {
   const [form] = Form.useForm();
 
   const [accounts, setAccounts] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [branchId, setBranchId] = useState();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
@@ -44,12 +53,36 @@ export default function RegisterPage() {
 
   const normalizedRoles = (user?.roles || []).map(normalizeRole);
   const isAdmin = normalizedRoles.includes('admin');
+  const isExecutive = normalizedRoles.includes('executivemanagement');
+  const isManager = normalizedRoles.includes('manager');
+  const canManageAccounts = isAdmin || isManager || isExecutive;
+  const roleOptions = isAdmin ? ADMIN_ROLE_OPTIONS : MANAGER_ROLE_OPTIONS;
 
   const loadAccounts = async (include) => {
     setLoading(true);
     try {
-      const { data } = await userApi.getAdminAccounts(include);
-      setAccounts(data.data || data || []);
+      if (isManager && !isExecutive && !user?.branchId) {
+        throw new Error('Branch is required.');
+      }
+
+      const accountPromise = isAdmin
+        ? userApi.getAdminAccounts(include)
+        : userApi.getManagerAccounts(include, isExecutive ? branchId : undefined);
+
+      const branchPromise = isExecutive ? assetApi.getBranches() : null;
+
+      const [accountRes, branchRes] = await Promise.all([
+        accountPromise,
+        branchPromise,
+      ]);
+
+      const data = accountRes?.data;
+      setAccounts(data?.data || data || []);
+
+      if (branchRes) {
+        const branchData = branchRes.data?.data || branchRes.data || [];
+        setBranches(branchData);
+      }
     } catch (err) {
       message.error(err?.response?.data?.message || 'Không thể tải danh sách tài khoản');
       setAccounts([]);
@@ -58,28 +91,44 @@ export default function RegisterPage() {
   };
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!canManageAccounts) {
       setLoading(false);
       return;
     }
     loadAccounts(includeDeactivated);
-  }, [isAdmin, includeDeactivated]);
+  }, [canManageAccounts, includeDeactivated, isAdmin, isManager, isExecutive, user?.branchId, branchId]);
+
+  useEffect(() => {
+    if (isManager && !isExecutive && user?.branchId) {
+      setBranchId(user.branchId);
+    }
+  }, [isManager, isExecutive, user?.branchId]);
 
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
       setSaving(true);
-      const { data } = await userApi.createAdminAccount({
+      if (isManager && !isExecutive && !user?.branchId) {
+        throw new Error('Branch is required.');
+      }
+
+      const requestPayload = {
         name: values.name?.trim(),
         email: values.email?.trim(),
         password: values.password,
         phone: values.phone?.trim() || null,
-        branchId: values.branchId || null,
+        branchId: isExecutive
+          ? (values.branchId || null)
+          : (isManager ? user?.branchId : (values.branchId || null)),
         role: values.role,
-      });
-      const payload = data?.data || data;
-      if (payload?.warning) {
-        message.warning(payload.warning);
+      };
+
+      const { data } = isAdmin
+        ? await userApi.createAdminAccount(requestPayload)
+        : await userApi.createManagerAccount(requestPayload);
+      const responsePayload = data?.data || data;
+      if (responsePayload?.warning) {
+        message.warning(responsePayload.warning);
       } else {
         message.success('Tạo tài khoản thành công');
       }
@@ -96,7 +145,11 @@ export default function RegisterPage() {
   const handleToggleStatus = async (record, nextActive) => {
     setUpdatingId(record.id);
     try {
-      await userApi.updateAdminAccountStatus(record.id, nextActive);
+      if (isAdmin) {
+        await userApi.updateAdminAccountStatus(record.id, nextActive);
+      } else {
+        await userApi.updateManagerAccountStatus(record.id, nextActive);
+      }
       message.success(nextActive ? 'Đã kích hoạt tài khoản' : 'Đã vô hiệu hóa tài khoản');
       loadAccounts(includeDeactivated);
     } catch (err) {
@@ -177,13 +230,24 @@ export default function RegisterPage() {
     },
   ];
 
-  if (!isAdmin) {
+  if (!canManageAccounts) {
     return (
       <Alert
         type="error"
         showIcon
         message="Bạn không có quyền truy cập"
-        description="Trang này chỉ dành cho tài khoản Admin."
+        description="Trang này chỉ dành cho tài khoản Admin, Manager hoặc Executive Management."
+      />
+    );
+  }
+
+  if (isManager && !isExecutive && !user?.branchId) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="Branch is required"
+        description="Your account does not have a branch assigned, so you cannot manage accounts."
       />
     );
   }
@@ -194,7 +258,13 @@ export default function RegisterPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <Typography.Title level={3} style={{ margin: 0 }}>Quản lý tài khoản</Typography.Title>
-            <Typography.Text type="secondary">Sử dụng API admin để xem, tạo mới và khóa/mở khóa tài khoản.</Typography.Text>
+            <Typography.Text type="secondary">
+              {isAdmin
+                ? 'Sử dụng API admin để xem, tạo mới và khóa/mở khóa tài khoản.'
+                : (isExecutive
+                  ? 'Quản lý tất cả tài khoản theo chi nhánh.'
+                  : 'Quản lý tài khoản trong chi nhánh.')}
+            </Typography.Text>
           </div>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => loadAccounts(includeDeactivated)}>Tải lại</Button>
@@ -213,6 +283,16 @@ export default function RegisterPage() {
                 if (!e.target.value) setSearch('');
               }}
             />
+            {isExecutive && (
+              <Select
+                allowClear
+                placeholder="Lọc theo chi nhánh"
+                style={{ width: 240 }}
+                value={branchId}
+                onChange={setBranchId}
+                options={branches.map((b) => ({ value: b.id, label: b.name }))}
+              />
+            )}
             <Space>
               <span>Hiển thị tài khoản đã khóa</span>
               <Switch checked={includeDeactivated} onChange={setIncludeDeactivated} />
@@ -248,7 +328,7 @@ export default function RegisterPage() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ role: 'Operator' }}
+          initialValues={{ role: 'Operator', branchId: isManager && !isExecutive ? user?.branchId : undefined }}
           preserve={false}
         >
           <Form.Item name="name" label="Họ tên" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
@@ -282,11 +362,16 @@ export default function RegisterPage() {
           </Form.Item>
 
           <Form.Item name="branchId" label="Mã chi nhánh">
-            <InputNumber style={{ width: '100%' }} min={1} placeholder="Nhập mã chi nhánh" />
+            <InputNumber
+              style={{ width: '100%' }}
+              min={1}
+              placeholder="Nhập mã chi nhánh"
+              disabled={isManager && !isExecutive}
+            />
           </Form.Item>
 
           <Form.Item name="role" label="Vai trò" rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}>
-            <Select options={ROLE_OPTIONS} />
+            <Select options={roleOptions} />
           </Form.Item>
         </Form>
       </Modal>

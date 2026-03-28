@@ -13,7 +13,6 @@ import MaintenanceFormPage from './pages/MaintenanceFormPage';
 import DistributionPage from './pages/DistributionPage';
 import TransferFormPage from './pages/TransferFormPage';
 import PendingRequestsPage from './pages/PendingRequestsPage';
-import RegisterPage from './pages/RegisterPage';
 import VehicleCostStatsPage from './pages/VehicleCostStatsPage';
 import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
@@ -45,6 +44,8 @@ import DriverListPage from './pages/DriverListPage';
 import DriverFormPage from './pages/DriverFormPage';
 import DriverTransferListPage from './pages/DriverTransferListPage';
 import DriverTransferDetailPage from './pages/DriverTransferDetailPage';
+import HrManagementPage from './pages/HrManagementPage';
+import EstimatedCostPage from './pages/EstimatedCostPage';
 
 export default function App() {
   return (
@@ -111,7 +112,8 @@ export default function App() {
             <Route path="distribution/new" element={<TransferFormPage />} />
 
             <Route path="pending" element={<PendingRequestsPage />} />
-            <Route path="register" element={<RegisterPage />} />
+            <Route path="hr-management" element={<HrManagementPage />} />
+            <Route path="estimated-costs" element={<EstimatedCostPage />} />
 
             <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
 
