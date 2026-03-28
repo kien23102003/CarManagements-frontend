@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import vehicleApi from '../api/vehicleApi';
 import { useAuth } from '../services/AuthContext';
-import { Row, Col, Card, Statistic, Input, Select, Collapse, Table, Tag, Space, Button, Avatar, message } from 'antd';
-import { PlusOutlined, EditOutlined, CarOutlined, BankOutlined, PictureOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, Input, Select, Collapse, Table, Tag, Space, Button, Avatar, message, Tooltip, Descriptions } from 'antd';
+import { PlusOutlined, EditOutlined, CarOutlined, BankOutlined, PictureOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
   Active: { label: 'Hoạt động', color: 'green' },
@@ -113,6 +113,50 @@ export default function VehicleListPage() {
     return Object.entries(m).sort((a, b) => b[1] - a[1]);
   };
 
+  const formatDate = (d) => {
+    if (!d) return '-';
+    return new Date(d).toLocaleDateString('vi-VN');
+  };
+
+  const isExpired = (d) => {
+    if (!d) return false;
+    return new Date(d) < new Date();
+  };
+
+  const formatCurrency = (v) => {
+    if (v == null) return '-';
+    return Number(v).toLocaleString('vi-VN') + ' đ';
+  };
+
+  const renderExpiryTag = (date) => {
+    if (!date) return <Tag>-</Tag>;
+    const expired = isExpired(date);
+    return (
+      <Tag color={expired ? 'red' : 'green'} icon={expired ? <WarningOutlined /> : null}>
+        {formatDate(date)} {expired ? '(Hết hạn)' : ''}
+      </Tag>
+    );
+  };
+
+  const expandedRowRender = (record) => (
+    <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3, lg: 4 }} bordered>
+      <Descriptions.Item label="VIN">{record.vin || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Số khung">{record.chassisNumber || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Số máy">{record.engineNumber || '-'}</Descriptions.Item>
+      <Descriptions.Item label="IMEI Telematics">{record.telematicsImei || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Loại động cơ">{record.engineType || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Số ghế">{record.seats || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Định mức NL (L/100km)">{record.fuelNorm ? `${record.fuelNorm} L` : '-'}</Descriptions.Item>
+      <Descriptions.Item label="Phù hiệu">{record.badgeType || '-'}</Descriptions.Item>
+      <Descriptions.Item label="Hạn phù hiệu">{renderExpiryTag(record.badgeExpirationDate)}</Descriptions.Item>
+      <Descriptions.Item label="Hạn đăng kiểm">{renderExpiryTag(record.registrationExpirationDate)}</Descriptions.Item>
+      <Descriptions.Item label="Hạn bảo hiểm">{renderExpiryTag(record.insuranceExpirationDate)}</Descriptions.Item>
+      <Descriptions.Item label="Ngày mua">{formatDate(record.purchaseDate)}</Descriptions.Item>
+      <Descriptions.Item label="Nguyên giá">{formatCurrency(record.originalCost)}</Descriptions.Item>
+      <Descriptions.Item label="Giá trị hiện tại">{formatCurrency(record.currentValue)}</Descriptions.Item>
+    </Descriptions>
+  );
+
   const columns = [
     {
       title: 'Ảnh',
@@ -126,8 +170,37 @@ export default function VehicleListPage() {
     { title: 'Biển số', dataIndex: 'licensePlate', key: 'plate', render: (v) => <strong>{v || '-'}</strong> },
     { title: 'Hãng xe', dataIndex: 'manufacturer', key: 'mfr', render: (v) => v || '-' },
     { title: 'Dòng xe', dataIndex: 'modelName', key: 'model', render: (v) => v || '-' },
-    { title: 'Năm SX', dataIndex: 'yearManufacture', key: 'year', render: (v) => v || '-' },
+    { title: 'Năm SX', dataIndex: 'yearManufacture', key: 'year', width: 80, render: (v) => v || '-' },
     { title: 'Số km', dataIndex: 'mileage', key: 'km', render: (v) => (v ? v.toLocaleString('vi-VN') : '-') },
+    {
+      title: 'NL (L/100km)',
+      dataIndex: 'fuelNorm',
+      key: 'fuel',
+      width: 100,
+      render: (v) => v ? `${v} L` : '-',
+    },
+    {
+      title: 'Đăng kiểm',
+      dataIndex: 'registrationExpirationDate',
+      key: 'regExpiry',
+      width: 120,
+      render: (d) => {
+        if (!d) return '-';
+        const expired = isExpired(d);
+        return <Tag color={expired ? 'red' : 'green'} icon={expired ? <WarningOutlined /> : null}>{formatDate(d)}</Tag>;
+      },
+    },
+    {
+      title: 'Bảo hiểm',
+      dataIndex: 'insuranceExpirationDate',
+      key: 'insExpiry',
+      width: 120,
+      render: (d) => {
+        if (!d) return '-';
+        const expired = isExpired(d);
+        return <Tag color={expired ? 'red' : 'green'} icon={expired ? <WarningOutlined /> : null}>{formatDate(d)}</Tag>;
+      },
+    },
     {
       title: 'Tài xế',
       key: 'driver',
@@ -206,7 +279,7 @@ export default function VehicleListPage() {
               </Tag>
             ))}
           </Space>
-          <Table dataSource={branch.vehicles} columns={columns} rowKey="id" size="small" pagination={false} />
+          <Table dataSource={branch.vehicles} columns={columns} rowKey="id" size="small" pagination={false} expandable={{ expandedRowRender, expandRowByClick: true }} scroll={{ x: 'max-content' }} />
         </div>
       ),
     };

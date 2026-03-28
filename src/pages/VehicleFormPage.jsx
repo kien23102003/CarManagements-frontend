@@ -36,9 +36,9 @@ import maintenanceApi from '../api/maintenanceApi';
 import { useAuth } from '../services/AuthContext';
 
 const ROLE_FIELDS = {
-  'Executive Management': ['status', 'currentDriverId'],
-  'Branch Asset Accountant': ['originalCost', 'currentValue'],
-  Operator: ['mileage', 'status', 'currentDriverId'],
+  'Executive Management': ['status', 'currentDriverId', 'badgeType', 'badgeExpirationDate', 'registrationExpirationDate', 'insuranceExpirationDate'],
+  'Branch Asset Accountant': ['originalCost', 'currentValue', 'badgeType', 'badgeExpirationDate', 'registrationExpirationDate', 'insuranceExpirationDate'],
+  Operator: ['mileage', 'status', 'currentDriverId', 'badgeType', 'badgeExpirationDate', 'registrationExpirationDate', 'insuranceExpirationDate'],
 };
 
 const DISPOSAL_STATUS_META = {
@@ -183,6 +183,9 @@ export default function VehicleFormPage() {
       form.setFieldsValue({
         ...vehicle,
         purchaseDate: vehicle.purchaseDate ? dayjs(vehicle.purchaseDate) : null,
+        badgeExpirationDate: vehicle.badgeExpirationDate ? dayjs(vehicle.badgeExpirationDate) : null,
+        registrationExpirationDate: vehicle.registrationExpirationDate ? dayjs(vehicle.registrationExpirationDate) : null,
+        insuranceExpirationDate: vehicle.insuranceExpirationDate ? dayjs(vehicle.insuranceExpirationDate) : null,
       });
       setVehicleStatus(vehicle.status || '');
 
@@ -297,6 +300,9 @@ export default function VehicleFormPage() {
       const payload = {
         ...values,
         purchaseDate: values.purchaseDate ? values.purchaseDate.format('YYYY-MM-DD') : null,
+        badgeExpirationDate: values.badgeExpirationDate ? values.badgeExpirationDate.format('YYYY-MM-DD') : null,
+        registrationExpirationDate: values.registrationExpirationDate ? values.registrationExpirationDate.format('YYYY-MM-DD') : null,
+        insuranceExpirationDate: values.insuranceExpirationDate ? values.insuranceExpirationDate.format('YYYY-MM-DD') : null,
       };
 
       if (isEdit) {
@@ -537,6 +543,63 @@ export default function VehicleFormPage() {
                 optionFilterProp="label"
                 options={driverOptions}
                 allowClear
+              />
+            </Form.Item>
+
+            {/* --- Phù hiệu & hạn giấy tờ --- */}
+            <Form.Item
+              name="badgeType"
+              label={<span>Phù hiệu {isDisabled('badgeType') ? lockIcon : null}</span>}
+            >
+              <Select
+                placeholder="Chọn loại phù hiệu"
+                disabled={isDisabled('badgeType')}
+                allowClear
+                options={[
+                  { value: 'Xe cong vu', label: 'Xe công vụ' },
+                  { value: 'Xe hop dong', label: 'Xe hợp đồng' },
+                  { value: 'Xe tai', label: 'Xe tải' },
+                  { value: 'Xe du lich', label: 'Xe du lịch' },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="badgeExpirationDate"
+              label={<span>Hạn phù hiệu {isDisabled('badgeExpirationDate') ? lockIcon : null}</span>}
+            >
+              <DatePicker
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                placeholder="Chọn ngày"
+                disabled={isDisabled('badgeExpirationDate')}
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="registrationExpirationDate"
+              label={<span>Hạn đăng kiểm {isDisabled('registrationExpirationDate') ? lockIcon : null}</span>}
+            >
+              <DatePicker
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                placeholder="Chọn ngày"
+                disabled={isDisabled('registrationExpirationDate')}
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="insuranceExpirationDate"
+              label={<span>Hạn bảo hiểm {isDisabled('insuranceExpirationDate') ? lockIcon : null}</span>}
+            >
+              <DatePicker
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                placeholder="Chọn ngày"
+                disabled={isDisabled('insuranceExpirationDate')}
+                disabledDate={(current) => current && current < dayjs().startOf('day')}
               />
             </Form.Item>
           </div>
