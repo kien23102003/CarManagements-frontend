@@ -76,6 +76,7 @@ export const canIssueAccessory = (roles = []) =>
   roles.includes('Manager');
 
 export const canManageBranchStock = (roles = []) =>
+  roles.includes('Operator') ||
   roles.includes('Executive Management') ||
   roles.includes('Branch Asset Accountant') ||
   roles.includes('Manager');
