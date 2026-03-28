@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import { Layout, Menu, Avatar, Dropdown, Typography, theme } from 'antd';
@@ -43,7 +43,6 @@ const NAV_ITEMS = [
     roles: ['Operator', 'Branch Asset Accountant', 'Executive Management'],
     children: [
       { key: '/drivers', label: 'Danh sách tài xế' },
-      { key: '/driver-transfers', label: 'Điều chuyển tài xế', roles: ['Operator'] },
     ],
   },
   {

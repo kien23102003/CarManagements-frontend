@@ -74,6 +74,7 @@ export default function DriverFormPage() {
           <Form.Item label="Tên tài xế" name="name" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item label="GPLX" name="licenseNumber" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item label="SĐT" name="phone"><Input /></Form.Item>
+          <Form.Item label="Email" name="email" rules={[{ type: 'email', message: 'Email không hợp lệ' }]}><Input /></Form.Item>
           <Form.Item label="Ngày vào làm" name="hireDate"><DatePicker style={{ width: '100%' }} /></Form.Item>
           <Form.Item label="Chi nhánh" name="branchId" rules={[{ required: true }]}>
             <Select

@@ -149,7 +149,7 @@ export default function VehicleAssignmentPage() {
       title: 'Dòng xe',
       dataIndex: 'modelName',
       key: 'modelName',
-      width: 100,
+      width: 110,
       render: (text, record) => text || record.manufacturer || '-',
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
@@ -158,58 +158,35 @@ export default function VehicleAssignmentPage() {
       dataIndex: 'yearManufacture',
       key: 'yearManufacture',
       width: 80,
+      sorter: (a, b) => (a.yearManufacture || 0) - (b.yearManufacture || 0),
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
-      title: 'VIN',
-      dataIndex: 'vin',
-      key: 'vin',
-      width: 150,
-      ellipsis: true,
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Số máy',
-      dataIndex: 'engineNumber',
-      key: 'engineNumber',
-      width: 120,
-      ellipsis: true,
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Số khung',
-      dataIndex: 'chassisNumber',
-      key: 'chassisNumber',
-      width: 120,
-      ellipsis: true,
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Màu',
-      dataIndex: 'color',
-      key: 'color',
-      width: 80,
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Số chỗ',
-      dataIndex: 'seatCount',
-      key: 'seatCount',
-      width: 70,
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Nhiên liệu',
-      dataIndex: 'fuelType',
-      key: 'fuelType',
-      width: 100,
+      title: 'Số km',
+      dataIndex: 'mileage',
+      key: 'mileage',
+      width: 110,
+      sorter: (a, b) => (a.mileage || 0) - (b.mileage || 0),
+      render: (mileage) =>
+        mileage != null ? `${Number(mileage).toLocaleString('vi-VN')} km` : '0 km',
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 130,
+      filters: [
+        { text: 'Sẵn sàng', value: 'Available' },
+        { text: 'Đã phân công', value: 'Assigned' },
+        { text: 'Đang bảo trì', value: 'InMaintenance' },
+        { text: 'Đang điều chuyển', value: 'InTransfer' },
+      ],
+      onFilter: (value, record) => {
+        if (value === 'Available') return record.status === 'Available' || record.status === 'Active';
+        if (value === 'InMaintenance') return record.status === 'InMaintenance' || record.status === 'Maintenance';
+        return record.status === value;
+      },
       render: (status) => {
         const normalizedStatus = status === 'Active' ? 'Available' : status;
         return (
@@ -224,8 +201,8 @@ export default function VehicleAssignmentPage() {
       title: 'Tài xế',
       dataIndex: 'currentDriverName',
       key: 'currentDriverName',
-      width: 120,
-      render: (driverName, record) => 
+      width: 150,
+      render: (driverName, record) =>
         record.currentDriverId != null ? (
           <Tag icon={<UserOutlined />} color="blue">
             {driverName}
@@ -239,24 +216,8 @@ export default function VehicleAssignmentPage() {
       title: 'Chi nhánh',
       dataIndex: 'currentBranchName',
       key: 'currentBranchName',
-      width: 120,
-      render: (branchName) => branchName || '—',
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Giá trị (VNĐ)',
-      dataIndex: 'currentValue',
-      key: 'currentValue',
       width: 130,
-      render: (value) => value ? `${value?.toLocaleString('vi-VN')}` : '-',
-      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
-    },
-    {
-      title: 'Số km',
-      dataIndex: 'mileage',
-      key: 'mileage',
-      width: 100,
-      render: (mileage) => mileage ? `${mileage.toLocaleString('vi-VN')} km` : '0 km',
+      render: (branchName) => branchName || '—',
       onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
     },
     {
@@ -378,7 +339,7 @@ export default function VehicleAssignmentPage() {
           dataSource={vehicles}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1500 }}
+          scroll={{ x: 1100 }}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
@@ -440,10 +401,17 @@ export default function VehicleAssignmentPage() {
               filterOption={(input, option) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
               }
-              options={drivers.map(d => ({
-                value: d.id,
-                label: d.name
-              }))}
+              options={drivers
+                .filter(d => d.branchId === selectedVehicle?.currentBranchId)
+                .filter(d => {
+                  // Exclude drivers already assigned to another vehicle
+                  const assignedVehicle = vehicles.find(v => v.currentDriverId === d.id);
+                  return !assignedVehicle || assignedVehicle.id === selectedVehicle?.id;
+                })
+                .map(d => ({
+                  value: d.id,
+                  label: d.name,
+                }))}
             />
           </Form.Item>
 

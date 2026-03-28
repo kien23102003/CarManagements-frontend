@@ -76,6 +76,7 @@ export default function DriverListPage() {
     { title: 'Tên tài xế', dataIndex: 'name' },
     { title: 'GPLX', dataIndex: 'licenseNumber' },
     { title: 'SĐT', dataIndex: 'phone', render: (v) => v || '-' },
+    { title: 'Email', dataIndex: 'email', render: (v) => v || '-' },
     { title: 'Chi nhánh', dataIndex: 'branchName', render: (v) => v || '-' },
     { title: 'Phương tiện hiện tại', dataIndex: 'currentVehicleLicensePlate', render: (v) => v || '-' },
     { title: 'Dòng xe', dataIndex: 'currentVehicleModelName', render: (v) => v || '-' },

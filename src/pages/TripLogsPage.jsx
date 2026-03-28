@@ -174,15 +174,34 @@ export default function TripLogsPage() {
         {
             title: "Thao tác",
             key: "actions",
-            render: (_, record) => (
-                record.isSourceBranch ? (
+            render: (_, record) => {
+                if (!record.isSourceBranch) {
+                    return <Text type="secondary">Chờ chi nhánh gốc</Text>
+                }
+                if (!record.driverId) {
+                    return (
+                        <Button
+                            type="primary"
+                            danger
+                            onClick={() => {
+                                Modal.warning({
+                                    title: "Xe chưa có tài xế",
+                                    content: "Vui lòng gán tài xế cho xe trước khi bắt đầu chuyến điều chuyển.",
+                                    okText: "Đi gán tài xế",
+                                    onOk: () => window.open("/vehicles/assignment", "_blank"),
+                                })
+                            }}
+                        >
+                            Gán tài xế
+                        </Button>
+                    )
+                }
+                return (
                     <Button type="primary" onClick={() => handleStartTrip(record)}>
                         Bắt đầu chuyến
                     </Button>
-                ) : (
-                    <Text type="secondary">Chờ chi nhánh gốc</Text>
                 )
-            ),
+            },
         },
     ]
 
