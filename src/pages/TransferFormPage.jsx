@@ -25,8 +25,9 @@ export default function TransferFormPage() {
       const vehicleData = vehicleRes.data?.data || vehicleRes.data || [];
 
       setBranches(stockData);
-      // Chỉ hiển thị xe Active (không đang điều chuyển)
-      setVehicles(vehicleData.filter((v) => v.status === 'Active'));
+      // Loại bỏ xe không được phép điều chuyển (theo backend validation)
+      const blockedStatuses = ['Disposed', 'Moving', 'InTransfer'];
+      setVehicles(vehicleData.filter((v) => !blockedStatuses.includes(v.status)));
     } catch { message.error('Không thể tải dữ liệu'); }
     setLoading(false);
   };

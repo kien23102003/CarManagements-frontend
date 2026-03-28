@@ -106,20 +106,20 @@ export default function DistributionPage() {
       key: 'status',
       render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
     },
-    {
+    ...(isExec ? [{
       title: 'Hành động',
       key: 'action',
       width: 100,
       render: (_, t) => (
         <Space>
-          {isExec && (t.status === 'Pending' || t.status === 'InTransit') && (
+          {(t.status === 'Pending' || t.status === 'InTransit') && (
             <Popconfirm title="Huỷ yêu cầu điều chuyển?" onConfirm={() => handleStatus(t.id, 'Cancelled')}>
               <Button size="small" danger icon={<StopOutlined />}>Huỷ</Button>
             </Popconfirm>
           )}
         </Space>
       ),
-    },
+    }] : []),
   ];
 
   // Expandable detail row — styled cards
