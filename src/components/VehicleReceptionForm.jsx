@@ -64,7 +64,6 @@ export default function VehicleReceptionForm({
             branchName: detail.branchName,
             manufacturer: detail.manufacturer,
             version: detail.version,
-            hasGsht: detail.hasGsht,
             vehicleIndex: i,
             totalForType: qty,
             fuelNorm: detail.fuelNorm,
@@ -150,16 +149,6 @@ export default function VehicleReceptionForm({
           setLoading(false);
           return;
         }
-        if (v.hasGsht && !checkItems.includes('checkImei')) {
-          notificationApi.error({ message: 'Lỗi Nghị định 10', description: `Xe #${v.vehicleIndex}: Vui lòng xác nhận IMEI GSHT` });
-          setLoading(false);
-          return;
-        }
-        if (v.seats >= 9 && !checkItems.includes('checkImei')) {
-          notificationApi.error({ message: 'Lỗi Nghị định 10', description: `Xe #${v.vehicleIndex}: Xe >= 9 chỗ bắt buộc xác nhận IMEI GSHT` });
-          setLoading(false);
-          return;
-        }
         if (!v.receiptImages || v.receiptImages.length === 0) {
           notificationApi.error({ message: 'Thiếu thông tin', description: `Xe #${v.vehicleIndex}: Thiếu ảnh minh chứng` });
           setLoading(false);
@@ -186,7 +175,7 @@ export default function VehicleReceptionForm({
           chassisNumber: v.chassisNumber,
           engineNumber: v.engineNumber,
           vin: v.vin,
-          telematicsImei: v.telematicsImei,
+          vin: v.vin,
           badgeType: v.badgeType || 'Chưa đăng ký phù hiệu',
           fuelNorm: v.fuelNorm,
           registrationExpirationDate: v.registrationExpirationDate ? v.registrationExpirationDate.format('YYYY-MM-DD') : null,
@@ -237,7 +226,7 @@ export default function VehicleReceptionForm({
   const renderReviewCard = (data, index) => {
     // Robust data access (handle camelCase or PascalCase)
     const getVal = (prop) => data?.[prop] || data?.[prop.charAt(0).toUpperCase() + prop.slice(1)];
-    
+
     const licensePlate = getVal('licensePlate');
     const vin = getVal('vin');
     const version = getVal('version');
@@ -255,10 +244,10 @@ export default function VehicleReceptionForm({
     const mileage = getVal('mileage');
 
     return (
-      <Card 
-        key={data.id || index} 
+      <Card
+        key={data.id || index}
         title={<span><FileSearchOutlined style={{ marginRight: 8, color: '#1890ff' }} /><b>BẢN GHI ĐỐI CHIẾU XE #{index + 1}</b></span>}
-        size="small" 
+        size="small"
         style={{ marginBottom: 24, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', borderLeft: '4px solid #1890ff' }}
         extra={<Tag color="green">ĐÃ ĐỐI CHIẾU</Tag>}
       >
@@ -297,10 +286,6 @@ export default function VehicleReceptionForm({
             <div>{engineNo || '-'}</div>
           </Col>
           <Col span={6}>
-            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>IMEI GSHT</Text>
-            <div style={{ color: imei ? '#000' : '#bfbfbf' }}>{imei || 'Không có'}</div>
-          </Col>
-          <Col span={6}>
             <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Định mức NL</Text>
             <div>{fuelNorm ? `${fuelNorm} L/100km` : '-'}</div>
           </Col>
@@ -316,8 +301,8 @@ export default function VehicleReceptionForm({
             <div>{insExp ? dayjs(insExp).format('DD/MM/YYYY') : '-'}</div>
           </Col>
           <Col span={6}>
-             <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Loại phù hiệu</Text>
-             <div>{badgeType || '-'}</div>
+            <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Loại phù hiệu</Text>
+            <div>{badgeType || '-'}</div>
           </Col>
           <Col span={6}>
             <Text type="secondary" style={{ fontSize: '11px', textTransform: 'uppercase' }}>Hạn phù hiệu</Text>
@@ -342,12 +327,6 @@ export default function VehicleReceptionForm({
                   <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
                   <span style={{ color: '#262626' }}>Hồ sơ, giấy tờ gốc đã thu đủ</span>
                 </div>
-                {imei && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
-                    <span style={{ color: '#262626' }}>IMEI GSHT đã kích hoạt hệ thống</span>
-                  </div>
-                )}
               </Space>
               {notes && (
                 <div style={{ marginTop: 16 }}>
@@ -364,13 +343,13 @@ export default function VehicleReceptionForm({
                 // Hoặc đơn giản là split theo pattern kết hợp ";data:"
                 const imageParts = imageUrlStr.split(/;(?=data:)/);
                 const firstImageUrl = imageParts[0] || "";
-                
+
                 return (
                   <div style={{ marginTop: 8 }}>
-                    <img 
-                      src={firstImageUrl} 
-                      alt="receipt-evidence" 
-                      style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', borderRadius: 8, border: '1px solid #d9d9d9', background: '#fff' }} 
+                    <img
+                      src={firstImageUrl}
+                      alt="receipt-evidence"
+                      style={{ width: '100%', maxHeight: '240px', objectFit: 'contain', borderRadius: 8, border: '1px solid #d9d9d9', background: '#fff' }}
                     />
                   </div>
                 );
@@ -425,14 +404,16 @@ export default function VehicleReceptionForm({
               <Col span={5}>
                 <Text type="secondary" style={{ fontSize: '12px' }}>Tiến độ bàn giao</Text>
                 <div>
-                  <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#52c41a' }}>{plan?.branchDetails?.[0]?.receivedQuantity || 0}</span>
-                  <span style={{ color: '#8c8c8c' }}> / {plan?.branchDetails?.[0]?.proposedQuantity || 0} Xe</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '18px', color: '#52c41a' }}>
+                    {plan?.branchDetails?.reduce((sum, d) => sum + (d.receivedQuantity || 0), 0) || 0}
+                  </span>
+                  <span style={{ color: '#8c8c8c' }}> / {plan?.branchDetails?.reduce((sum, d) => sum + (d.proposedQuantity || 0), 0) || 0} Xe</span>
                 </div>
               </Col>
               <Col span={6} style={{ textAlign: 'right' }}>
-                 <Tag color="blue" style={{ padding: '4px 12px', borderRadius: '20px' }}>
-                    Sản phẩm mục tiêu: {plan?.branchDetails?.[0]?.manufacturer}
-                 </Tag>
+                <Tag color="blue" style={{ padding: '4px 12px', borderRadius: '20px' }}>
+                  Sản phẩm mục tiêu: {plan?.branchDetails?.[0]?.manufacturer}
+                </Tag>
               </Col>
             </Row>
           </div>
@@ -459,6 +440,7 @@ export default function VehicleReceptionForm({
                   rowKey={(r) => `${r.branchId}-${r.manufacturer}-${r.version}`}
                   pagination={false}
                   size="small"
+                  rowClassName={(r) => r.receivedQuantity >= r.proposedQuantity ? 'row-completed' : ''}
                   columns={[
                     {
                       title: 'Lựa chọn đối chiếu',
@@ -466,6 +448,10 @@ export default function VehicleReceptionForm({
                       align: 'center',
                       render: (_, r) => {
                         const rowKey = `${r.branchId}-${r.manufacturer}-${r.version}`;
+                        const isDone = r.receivedQuantity >= r.proposedQuantity;
+
+                        if (isDone) return <Tag color="success" icon={<CheckCircleOutlined />}>Đã hoàn thành</Tag>;
+
                         return (
                           <Checkbox
                             checked={selectedRowKeys.includes(rowKey)}
@@ -486,20 +472,26 @@ export default function VehicleReceptionForm({
                     { title: 'Model', render: (_, r) => `${r.manufacturer} ${r.version || ''}` },
                     { title: 'P.Thức', dataIndex: 'acquisitionMethod', render: (v) => v === 'Ownership' ? 'Mua đứt' : 'Thuê' },
                     { title: 'Định mức NL', dataIndex: 'fuelNorm', render: (v) => v ? `${v} L/100km` : '-' },
-                    { title: 'GSHT', dataIndex: 'hasGsht', render: (v) => v ? 'Có' : 'Không' },
                     { title: 'Số lượng mua', dataIndex: 'proposedQuantity' },
-                    { title: 'Đã nhận', render: (_, r) => `${r.receivedQuantity} / ${r.proposedQuantity}` },
+                    {
+                      title: 'Đã nhận', render: (_, r) => (
+                        <span style={{ color: r.receivedQuantity >= r.proposedQuantity ? '#52c41a' : 'inherit', fontWeight: r.receivedQuantity >= r.proposedQuantity ? 'bold' : 'normal' }}>
+                          {r.receivedQuantity} / {r.proposedQuantity}
+                        </span>
+                      )
+                    },
                     {
                       title: 'Số lượng nhận',
                       width: 120,
                       render: (_, r) => {
                         const rowKey = `${r.branchId}-${r.manufacturer}-${r.version}`;
+                        const isDone = r.receivedQuantity >= r.proposedQuantity;
                         return (
                           <InputNumber
                             min={1}
                             max={r.proposedQuantity - r.receivedQuantity}
-                            disabled={!selectedRowKeys.includes(rowKey)}
-                            value={receptionQuantities[rowKey] || 1}
+                            disabled={isDone || !selectedRowKeys.includes(rowKey)}
+                            value={isDone ? 0 : (receptionQuantities[rowKey] || 1)}
                             onChange={(val) => handleQtyChange(rowKey, val)}
                           />
                         );
@@ -533,9 +525,8 @@ export default function VehicleReceptionForm({
                             >
                               <div style={{ background: '#e6f4ff', padding: '8px 16px', borderRadius: 4, marginBottom: 16, border: '1px solid #91caff' }}>
                                 <Row gutter={16}>
-                                  <Col span={6}><strong>Định mức NL:</strong> {vehicleData?.fuelNorm} L/100km</Col>
-                                  <Col span={6}><strong>GSHT:</strong> {vehicleData?.hasGsht ? 'Cần kích hoạt' : 'Không yêu cầu'}</Col>
-                                  <Col span={12}><strong>Ghi chú đề xuất:</strong> {vehicleData?.branchNotes || 'Không có'}</Col>
+                                  <Col span={8}><strong>Định mức NL:</strong> {vehicleData?.fuelNorm} L/100km</Col>
+                                  <Col span={16}><strong>Ghi chú đề xuất:</strong> {vehicleData?.branchNotes || 'Không có'}</Col>
                                 </Row>
                               </div>
 
@@ -550,15 +541,15 @@ export default function VehicleReceptionForm({
 
                               <Row gutter={16}>
                                 <Col span={6}>
-                                  <Form.Item 
-                                    {...restField} 
-                                    label="Biển số" 
-                                    name={[name, 'licensePlate']} 
+                                  <Form.Item
+                                    {...restField}
+                                    label="Biển số"
+                                    name={[name, 'licensePlate']}
                                     rules={[
                                       { required: true, message: 'Vui lòng nhập biển số' },
-                                      { 
-                                        pattern: /^[0-9]{2}[A-Z]{1,2}-[0-9]{3,5}(\.[0-9]{2})?$/, 
-                                        message: 'Biển số không đúng định dạng (VD: 29A-123.45)' 
+                                      {
+                                        pattern: /^[0-9]{2}[A-Z]{1,2}-[0-9]{3,5}(\.[0-9]{2})?$/,
+                                        message: 'Biển số không đúng định dạng (VD: 29A-123.45)'
                                       }
                                     ]}
                                     normalize={(value) => value ? value.toUpperCase().replace(/\s/g, '') : value}
@@ -567,16 +558,16 @@ export default function VehicleReceptionForm({
                                   </Form.Item>
                                 </Col>
                                 <Col span={6}>
-                                  <Form.Item 
-                                    {...restField} 
-                                    label="Số VIN" 
-                                    name={[name, 'vin']} 
+                                  <Form.Item
+                                    {...restField}
+                                    label="Số VIN"
+                                    name={[name, 'vin']}
                                     rules={[
                                       { required: true, message: 'Vui lòng nhập số VIN' },
                                       { len: 17, message: 'Số VIN phải đủ 17 ký tự' },
-                                      { 
-                                        pattern: /^[A-HJ-NPR-Z0-9]{17}$/, 
-                                        message: 'Số VIN không hợp lệ (Không chứa I, O, Q)' 
+                                      {
+                                        pattern: /^[A-HJ-NPR-Z0-9]{17}$/,
+                                        message: 'Số VIN không hợp lệ (Không chứa I, O, Q)'
                                       }
                                     ]}
                                   >
@@ -606,25 +597,7 @@ export default function VehicleReceptionForm({
                               </Row>
 
                               <Row gutter={16}>
-                                <Col span={6}>
-                                  <Form.Item {...restField} label="Loại phù hiệu" name={[name, 'badgeType']}>
-                                    <Select options={[{ value: 'Xe hợp đồng', label: 'Xe hợp đồng' }, { value: 'Xe du lịch', label: 'Xe du lịch' }]} />
-                                  </Form.Item>
-                                </Col>
                                 <Col span={10}>
-                                  <Form.Item
-                                    {...restField}
-                                    label={`IMEI GSHT ${(vehicleData?.hasGsht || (vehicleData?.seats >= 9)) ? '(Bắt buộc)' : '(Tùy chọn)'}`}
-                                    name={[name, 'telematicsImei']}
-                                    rules={[
-                                      { required: vehicleData?.hasGsht || (vehicleData?.seats >= 9), message: 'Vui lòng nhập IMEI' },
-                                      { pattern: /^\d{15}$/, message: 'IMEI phải là 15 chữ số' }
-                                    ]}
-                                  >
-                                    <Input placeholder="15 chữ số" />
-                                  </Form.Item>
-                                </Col>
-                                <Col span={8}>
                                   <Form.Item {...restField} label="Ghi chú" name={[name, 'notes']}>
                                     <Input />
                                   </Form.Item>
@@ -633,10 +606,10 @@ export default function VehicleReceptionForm({
 
                               <Row gutter={16}>
                                 <Col span={8}>
-                                  <Form.Item 
-                                    {...restField} 
-                                    label="Hạn đăng kiểm" 
-                                    name={[name, 'registrationExpirationDate']} 
+                                  <Form.Item
+                                    {...restField}
+                                    label="Hạn đăng kiểm"
+                                    name={[name, 'registrationExpirationDate']}
                                     rules={[
                                       { required: true, message: 'Vui lòng chọn ngày' },
                                       () => ({
@@ -653,10 +626,10 @@ export default function VehicleReceptionForm({
                                   </Form.Item>
                                 </Col>
                                 <Col span={8}>
-                                  <Form.Item 
-                                    {...restField} 
-                                    label="Hạn bảo hiểm" 
-                                    name={[name, 'insuranceExpirationDate']} 
+                                  <Form.Item
+                                    {...restField}
+                                    label="Hạn bảo hiểm"
+                                    name={[name, 'insuranceExpirationDate']}
                                     rules={[
                                       { required: true, message: 'Vui lòng chọn ngày' },
                                       () => ({
@@ -673,9 +646,9 @@ export default function VehicleReceptionForm({
                                   </Form.Item>
                                 </Col>
                                 <Col span={8}>
-                                  <Form.Item 
-                                    {...restField} 
-                                    label="Hạn phù hiệu" 
+                                  <Form.Item
+                                    {...restField}
+                                    label="Hạn phù hiệu"
                                     name={[name, 'badgeExpirationDate']}
                                     rules={[
                                       () => ({
@@ -704,9 +677,6 @@ export default function VehicleReceptionForm({
                                         <Checkbox value="checkInfo">Biển số & Cavet trùng khớp</Checkbox>
                                         <Checkbox value="checkVinChassis">VIN & Khung máy trùng khớp</Checkbox>
                                         <Checkbox value="checkDocs">Đủ giấy tờ bàn giao</Checkbox>
-                                        {(vehicleData?.hasGsht || vehicleData?.seats >= 9) && (
-                                          <Checkbox value="checkImei" style={{ color: 'red' }}>Đã kích hoạt IMEI GSHT (NĐ10)</Checkbox>
-                                        )}
                                       </Space>
                                     </Checkbox.Group>
                                   </Form.Item>

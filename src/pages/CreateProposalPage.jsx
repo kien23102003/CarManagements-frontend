@@ -58,7 +58,6 @@ export default function CreateProposalPage() {
                         licensePlateFee: d.licensePlateFee,
                         insuranceFee: d.insuranceFee,
                         hasCamera158: d.hasCamera158 ?? false,
-                        hasGsht: d.hasGsht ?? false,
                         fuelNorm: d.fuelNorm,
                         acquisitionMethod: d.acquisitionMethod || 'Ownership',
                     })),
@@ -95,7 +94,6 @@ export default function CreateProposalPage() {
                     licensePlateFee: d.licensePlateFee,
                     insuranceFee: d.insuranceFee,
                     hasCamera158: d.hasCamera158,
-                    hasGsht: d.hasGsht,
                     fuelNorm: d.fuelNorm,
                     acquisitionMethod: d.acquisitionMethod || 'Ownership',
                 })),
@@ -133,18 +131,17 @@ export default function CreateProposalPage() {
                 validateTrigger="onBlur"
                 initialValues={{
                     details: [
-                        { 
-                            quantity: 1, 
-                            unitPrice: 0, 
-                            seats: null, 
-                            manufacturer: '', 
+                        {
+                            quantity: 1,
+                            unitPrice: 0,
+                            seats: null,
+                            manufacturer: '',
                             notes: '',
                             registrationTax: 0,
                             roadMaintenanceFee: 0,
                             licensePlateFee: 0,
                             insuranceFee: 0,
                             hasCamera158: false,
-                            hasGsht: false,
                             acquisitionMethod: 'Ownership'
                         },
                     ],
@@ -165,10 +162,10 @@ export default function CreateProposalPage() {
                     rules={[{ required: true, message: 'Vui lòng chọn hạn hoàn thành' }]}
                     extra="Ngày dự kiến hoàn tất toàn bộ quá trình mua sắm và bàn giao xe"
                 >
-                    <DatePicker 
-                        style={{ width: '100%' }} 
-                        format="DD/MM/YYYY" 
-                        placeholder="Chọn ngày hạn..." 
+                    <DatePicker
+                        style={{ width: '100%' }}
+                        format="DD/MM/YYYY"
+                        placeholder="Chọn ngày hạn..."
                         disabledDate={(current) => current && current < dayjs().startOf('day')}
                     />
                 </Form.Item>
@@ -263,7 +260,7 @@ export default function CreateProposalPage() {
                                                 <InputNumber min={0} style={{ width: '100%' }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={(v) => v.replace(/\$\s?|(,*)/g, '')} />
                                             </Form.Item>
                                         </Col>
-                                        
+
                                         {/* Chi tiết TCO */}
                                         <Col span={6}>
                                             <Form.Item {...restField} label="Phí trước bạ" name={[name, 'registrationTax']}>
@@ -286,27 +283,18 @@ export default function CreateProposalPage() {
                                             </Form.Item>
                                         </Col>
 
-                                        {/* NĐ 158 Compliance */}
-                                        <Col span={4}>
-                                            <Space direction="vertical" style={{ marginTop: 30 }}>
-                                                <Form.Item {...restField} name={[name, 'hasCamera158']} valuePropName="checked" noStyle>
-                                                    <Checkbox>Camera NĐ 158</Checkbox>
-                                                </Form.Item>
-                                                <Form.Item {...restField} name={[name, 'hasGsht']} valuePropName="checked" noStyle>
-                                                    <Checkbox>Thiết bị GSHT</Checkbox>
-                                                </Form.Item>
-                                            </Space>
-                                        </Col>
-                                        <Col span={4}>
+                                        {/* Fuel Norm */}
+                                        <Col span={6}>
                                             <Form.Item
                                                 {...restField}
                                                 label="Định mức NL (L/100km)"
                                                 name={[name, 'fuelNorm']}
+                                                rules={[{ required: true, message: 'Vui lòng nhập định mức' }]}
                                             >
-                                                <InputNumber min={0} step={0.1} style={{ width: '100%' }} />
+                                                <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
                                             </Form.Item>
                                         </Col>
-                                        
+
                                         {/* TCO Realtime Total & Remove */}
                                         <Col span={21}>
                                             <Form.Item noStyle shouldUpdate={(prev, curr) => prev.details !== curr.details}>
@@ -316,15 +304,13 @@ export default function CreateProposalPage() {
                                                     const q = current.quantity || 0;
                                                     const cost = (current.unitPrice || 0) + (current.registrationTax || 0) + (current.roadMaintenanceFee || 0) + (current.licensePlateFee || 0) + (current.insuranceFee || 0);
                                                     const total = q * cost;
-                                                    const seatsAlert = current.seats >= 8 && (!current.hasCamera158 || !current.hasGsht);
                                                     return (
                                                         <div style={{ background: '#e6f7ff', padding: '10px 15px', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                             <div>
-                                                                <strong style={{ fontSize: 16 }}>Tổng TCO ước tính: </strong>
+                                                                 <strong style={{ fontSize: 16 }}>Tổng TCO ước tính (Bao gồm phí): </strong>
                                                                 <span style={{ color: '#1890ff', fontSize: 16, fontWeight: 'bold' }}>
                                                                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total)}
                                                                 </span>
-                                                                {seatsAlert && <span style={{ color: 'red', marginLeft: 15, fontSize: 13 }}>⚠️ Lỗi: Xe trên 8 chỗ yêu cầu bắt buộc tích Camera & GSHT.</span>}
                                                             </div>
                                                         </div>
                                                     );
