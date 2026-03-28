@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import distributionApi from '../api/distributionApi';
-import { App, Tabs, Table, Tag, Button, Card, Row, Col, Statistic, Select, Space, Popconfirm, Descriptions } from 'antd';
-import { PlusOutlined, StopOutlined, BankOutlined } from '@ant-design/icons';
+import { App, Tabs, Table, Tag, Button, Card, Row, Col, Statistic, Select, Space, Popconfirm, Alert } from 'antd';
+import { PlusOutlined, StopOutlined, BankOutlined, ClockCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const TRANG_THAI = {
@@ -104,7 +104,21 @@ export default function DistributionPage() {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
-      render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
+      render: (s, record) => {
+        const tag = <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>;
+        const isOverdue =
+          (s === 'Pending' && record.plannedDepartureDate && dayjs().isAfter(dayjs(record.plannedDepartureDate))) ||
+          (s === 'InTransit' && record.plannedArrivalDate && dayjs().isAfter(dayjs(record.plannedArrivalDate)));
+        if (isOverdue) {
+          return (
+            <Space direction="vertical" size={2}>
+              {tag}
+              <Tag color="red" icon={<ClockCircleOutlined />} style={{ fontWeight: 600 }}>Quá hạn</Tag>
+            </Space>
+          );
+        }
+        return tag;
+      },
     },
     ...(isExec ? [{
       title: 'Hành động',
@@ -234,6 +248,39 @@ export default function DistributionPage() {
               options={Object.entries(TRANG_THAI).map(([k, v]) => ({ value: k, label: v }))}
             />
           </Space>
+
+          {(() => {
+            const overdueList = transfers.filter((t) => {
+              if (t.status === 'Pending' && t.plannedDepartureDate && dayjs().isAfter(dayjs(t.plannedDepartureDate))) return true;
+              if (t.status === 'InTransit' && t.plannedArrivalDate && dayjs().isAfter(dayjs(t.plannedArrivalDate))) return true;
+              return false;
+            });
+            if (overdueList.length > 0) {
+              return (
+                <Alert
+                  type="error"
+                  showIcon
+                  icon={<WarningOutlined />}
+                  style={{ marginBottom: 16, borderRadius: 8 }}
+                  message={<strong>{overdueList.length} chuyến điều chuyển đang quá hạn!</strong>}
+                  description={
+                    <ul style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+                      {overdueList.map((t) => (
+                        <li key={t.id}>
+                          <strong>#{t.id}</strong> — {t.licensePlate || '—'} ({t.fromBranchName} → {t.toBranchName})
+                          {t.status === 'Pending'
+                            ? ` — Quá hạn khởi hành ${dayjs(t.plannedDepartureDate).format('DD/MM HH:mm')}` 
+                            : ` — Quá hạn đến nơi ${dayjs(t.plannedArrivalDate).format('DD/MM HH:mm')}`}
+                        </li>
+                      ))}
+                    </ul>
+                  }
+                />
+              );
+            }
+            return null;
+          })()}
+
           <Table
             dataSource={transfers}
             columns={transferColumns}
@@ -245,7 +292,18 @@ export default function DistributionPage() {
               expandedRowRender,
               rowExpandable: () => true,
             }}
+            rowClassName={(record) => {
+              const isOverdue =
+                (record.status === 'Pending' && record.plannedDepartureDate && dayjs().isAfter(dayjs(record.plannedDepartureDate))) ||
+                (record.status === 'InTransit' && record.plannedArrivalDate && dayjs().isAfter(dayjs(record.plannedArrivalDate)));
+              return isOverdue ? 'overdue-row' : '';
+            }}
           />
+          <style>{`
+            .overdue-row { background: #fff2f0 !important; }
+            .overdue-row:hover > td { background: #ffece8 !important; }
+            .overdue-row td { border-bottom-color: #ffccc7 !important; }
+          `}</style>
         </div>
       ),
     },
