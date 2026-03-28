@@ -42,6 +42,8 @@ import DisposalProposalCreatePage from './pages/DisposalProposalCreatePage';
 import VehicleDisposalHistoryPage from './pages/VehicleDisposalHistoryPage';
 import DriverListPage from './pages/DriverListPage';
 import DriverFormPage from './pages/DriverFormPage';
+import HrManagementPage from './pages/HrManagementPage';
+import EstimatedCostPage from './pages/EstimatedCostPage';
 
 
 export default function App() {
