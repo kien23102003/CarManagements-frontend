@@ -17,6 +17,8 @@ import {
   unwrapData,
 } from '../services/accessoryHelpers';
 
+const disablePastDate = (current) => current && current.startOf('day').isBefore(dayjs().startOf('day'));
+
 export default function AccessoryIssuePage() {
   const [form] = Form.useForm();
   const { message } = App.useApp();
@@ -133,6 +135,11 @@ export default function AccessoryIssuePage() {
 
   const handleSubmit = async (values) => {
     if (!writable) {
+      return;
+    }
+
+    if (values.installDate && values.installDate.startOf('day').isBefore(dayjs().startOf('day'))) {
+      message.error('Ngày lắp không được nhỏ hơn ngày hiện tại');
       return;
     }
 
@@ -274,7 +281,7 @@ export default function AccessoryIssuePage() {
           </Form.Item>
 
           <Form.Item name="installDate" label="Ngày lắp">
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker style={{ width: '100%' }} disabledDate={disablePastDate} />
           </Form.Item>
 
           <Form.Item name="notes" label="Ghi chú">

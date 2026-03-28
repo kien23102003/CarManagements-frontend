@@ -17,6 +17,7 @@ const NORMALIZED_MAINTENANCE_TYPE = {
 const MAINTENANCE_STATUSES = new Set(['Maintenance', 'InMaintenance']);
 
 const normalizeMaintenanceType = (type) => NORMALIZED_MAINTENANCE_TYPE[type] || 'Periodic';
+const disablePastDate = (current) => current && current.startOf('day').isBefore(dayjs().startOf('day'));
 
 export default function MaintenanceFormPage() {
   const { id } = useParams();
@@ -36,6 +37,7 @@ export default function MaintenanceFormPage() {
     if (isEdit) {
       loadItem();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const loadVehicles = async () => {
@@ -86,9 +88,7 @@ export default function MaintenanceFormPage() {
   };
 
   const handleMarkVehicleMaintenance = async () => {
-    if (!selectedVehicle) {
-      return;
-    }
+    if (!selectedVehicle) return;
 
     const vehicleId = selectedVehicle.id || selectedVehicle.value;
     setUpdatingVehicleStatus(true);
@@ -113,6 +113,11 @@ export default function MaintenanceFormPage() {
     const vehicle = vehicles.find((item) => item.id === values.vehicleId) || selectedVehicle;
     if (!isEdit && !MAINTENANCE_STATUSES.has(vehicle?.status)) {
       message.warning('Xe phải ở trạng thái đang bảo trì trước khi tạo phiếu');
+      return;
+    }
+
+    if (!isEdit && values.requestDate && values.requestDate.startOf('day').isBefore(dayjs().startOf('day'))) {
+      message.warning('Ngày yêu cầu không được nhỏ hơn ngày hiện tại');
       return;
     }
 
@@ -152,11 +157,13 @@ export default function MaintenanceFormPage() {
 
   const vehicleOptions = [
     ...(currentVehicleOption ? [currentVehicleOption] : []),
-    ...vehicles.map((vehicle) => ({
-      value: vehicle.id,
-      label: `${vehicle.licensePlate || '-'} - ${vehicle.manufacturer || ''} ${vehicle.modelName || ''}`.trim(),
-      status: vehicle.status,
-    })).filter((option, index, array) => array.findIndex((item) => item.value === option.value) === index),
+    ...vehicles
+      .map((vehicle) => ({
+        value: vehicle.id,
+        label: `${vehicle.licensePlate || '-'} - ${vehicle.manufacturer || ''} ${vehicle.modelName || ''}`.trim(),
+        status: vehicle.status,
+      }))
+      .filter((option, index, array) => array.findIndex((item) => item.value === option.value) === index),
   ];
 
   const chosenVehicle = selectedVehicle || (isEdit ? currentVehicleOption : null);
@@ -200,7 +207,13 @@ export default function MaintenanceFormPage() {
               label="Ngày yêu cầu"
               rules={[{ required: true, message: 'Vui lòng chọn ngày yêu cầu' }]}
             >
-              <DatePicker disabled={isEdit} style={{ width: '100%' }} format="YYYY-MM-DD" placeholder="Chọn ngày" />
+              <DatePicker
+                disabled={isEdit}
+                disabledDate={disablePastDate}
+                style={{ width: '100%' }}
+                format="YYYY-MM-DD"
+                placeholder="Chọn ngày"
+              />
             </Form.Item>
 
             <Form.Item
@@ -242,7 +255,7 @@ export default function MaintenanceFormPage() {
           </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-            <Button onClick={() => navigate('/maintenance')}>Hủy</Button>
+            <Button onClick={() => navigate('/maintenance')}>Huỷ</Button>
             <Button type="primary" htmlType="submit" loading={saving} disabled={!canSubmit || updatingVehicleStatus}>
               {isEdit ? 'Cập nhật' : 'Tạo mới'}
             </Button>

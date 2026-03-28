@@ -68,8 +68,7 @@ const isDisposedStatus = (status) => {
   return normalized === 'disposed' || normalized === 'liquidated';
 };
 
-const money = (value) =>
-  value == null ? '-' : `${Number(value).toLocaleString('vi-VN')} VND`;
+const money = (value) => (value == null ? '-' : `${Number(value).toLocaleString('vi-VN')} VND`);
 
 export default function VehicleFormPage() {
   const { id } = useParams();
@@ -360,33 +359,20 @@ export default function VehicleFormPage() {
       title: 'Ngày yêu cầu',
       dataIndex: 'requestDate',
       render: (value) => (value ? dayjs(value).format('DD/MM/YYYY') : '-'),
-      width: 110,
+      width: 120,
     },
     {
       title: 'Loại',
       dataIndex: 'maintenanceType',
       render: (value) => MAINTENANCE_TYPE_LABELS[value] || value || '-',
-      width: 150,
-    },
-    {
-      title: 'Tiến độ',
-      key: 'progress',
-      width: 170,
-      render: (_, record) => (
-        <Space size={[4, 4]} wrap>
-          <Tag color="default">{record.description ? 'Có yêu cầu' : 'Thiếu mô tả'}</Tag>
-          <Tag color={record.completionNote ? 'cyan' : 'default'}>
-            {record.completionNote ? 'Có kết quả' : 'Chưa kết luận'}
-          </Tag>
-        </Space>
-      ),
+      width: 160,
     },
     {
       title: 'Chi phí',
       key: 'costs',
       width: 220,
       render: (_, record) => (
-        <div style={{ lineHeight: 1.5 }}>
+        <div style={{ lineHeight: 1.6 }}>
           <div>
             <strong>Dự tính:</strong> {money(record.estimatedCost)}
           </div>
@@ -400,16 +386,16 @@ export default function VehicleFormPage() {
       title: 'Ngày hoàn thành',
       dataIndex: 'completionDate',
       render: (value) => (value ? dayjs(value).format('DD/MM/YYYY') : '-'),
-      width: 120,
+      width: 130,
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
+      width: 130,
       render: (status) => {
         const meta = MAINTENANCE_STATUS_META[status] || { label: status || '-', color: 'default' };
         return <Tag color={meta.color}>{meta.label}</Tag>;
       },
-      width: 130,
     },
     {
       title: 'Chi tiết',

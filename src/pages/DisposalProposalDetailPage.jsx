@@ -29,6 +29,7 @@ const STATUS_META = {
 const unwrapData = (res) => res?.data?.data || res?.data || null;
 const getErrorMessage = (err, fallback) =>
   err?.response?.data?.message || err?.response?.data?.Message || fallback;
+const disablePastDate = (current) => current && current.startOf('day').isBefore(dayjs().startOf('day'));
 
 export default function DisposalProposalDetailPage() {
   const { id } = useParams();
@@ -218,7 +219,7 @@ export default function DisposalProposalDetailPage() {
         )}
         <Form form={approveForm} layout="vertical">
           <Form.Item name="changeDate" label="Ngày ghi nhận biến động">
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={disablePastDate} />
           </Form.Item>
           <Form.Item name="notes" label="Ghi chú">
             <Input.TextArea rows={3} maxLength={500} showCount />
