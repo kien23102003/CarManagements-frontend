@@ -175,7 +175,6 @@ export default function VehicleReceptionForm({
           chassisNumber: v.chassisNumber,
           engineNumber: v.engineNumber,
           vin: v.vin,
-          vin: v.vin,
           badgeType: v.badgeType || 'Chưa đăng ký phù hiệu',
           fuelNorm: v.fuelNorm,
           registrationExpirationDate: v.registrationExpirationDate ? v.registrationExpirationDate.format('YYYY-MM-DD') : null,
