@@ -29,10 +29,28 @@ export default function VehicleAccessoryRequirementsPage() {
     const loadBaseData = async () => {
       try {
         const [vehicleRes, accessoryRes] = await Promise.all([
-          assetApi.getVehicleModels(),
+          assetApi.getList(),
           accessoryApi.getAccessories({ page: 1, pageSize: 500 }),
         ]);
-        setModels(unwrapData(vehicleRes.data));
+        const vehicleItems = unwrapData(vehicleRes.data);
+        const branchModels = Array.from(
+          vehicleItems
+            .filter((item) => (item.modelId || item.id) && (item.modelName || item.manufacturer))
+            .reduce((map, item) => {
+              const modelId = item.modelId || item.id;
+              if (!map.has(modelId)) {
+                map.set(modelId, {
+                  id: modelId,
+                  manufacturer: item.manufacturer,
+                  modelName: item.modelName,
+                });
+              }
+              return map;
+            }, new Map())
+            .values()
+        );
+
+        setModels(branchModels);
         setAccessories(unwrapData(accessoryRes.data));
       } catch {
         setModels([]);

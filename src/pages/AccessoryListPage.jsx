@@ -4,7 +4,6 @@ import {
   App,
   Button,
   Card,
-  Image,
   Input,
   Select,
   Space,
@@ -21,7 +20,6 @@ import {
   ACCESSORY_TYPE_OPTIONS,
   canReadAccessoryModule,
   canWriteAccessoryCatalog,
-  formatCurrency,
   unwrapData,
 } from '../services/accessoryHelpers';
 
@@ -75,37 +73,6 @@ export default function AccessoryListPage() {
 
   const columns = useMemo(
     () => [
-      {
-        title: 'Hình ảnh',
-        dataIndex: 'imageUrl',
-        key: 'imageUrl',
-        width: 110,
-        render: (value) =>
-          value ? (
-            <Image
-              src={value}
-              alt="Accessory"
-              width={52}
-              height={52}
-              style={{ objectFit: 'cover', borderRadius: 8 }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 8,
-                background: '#f5f5f5',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#999',
-              }}
-            >
-              N/A
-            </div>
-          ),
-      },
       { title: 'Mã', dataIndex: 'code', key: 'code', width: 140 },
       { title: 'Tên', dataIndex: 'name', key: 'name' },
       {
@@ -114,13 +81,6 @@ export default function AccessoryListPage() {
         key: 'type',
         width: 140,
         render: (value) => ACCESSORY_TYPE_OPTIONS.find((item) => item.value === value)?.label || value,
-      },
-      {
-        title: 'Đơn giá',
-        dataIndex: 'unitPrice',
-        key: 'unitPrice',
-        width: 150,
-        render: formatCurrency,
       },
       {
         title: 'Tồn tối thiểu mặc định',

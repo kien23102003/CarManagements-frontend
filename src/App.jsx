@@ -13,7 +13,6 @@ import MaintenanceFormPage from './pages/MaintenanceFormPage';
 import DistributionPage from './pages/DistributionPage';
 import TransferFormPage from './pages/TransferFormPage';
 import PendingRequestsPage from './pages/PendingRequestsPage';
-import RegisterPage from './pages/RegisterPage';
 import VehicleCostStatsPage from './pages/VehicleCostStatsPage';
 import ProposalListPage from './pages/ProposalListPage';
 import CreateProposalPage from './pages/CreateProposalPage';
@@ -95,7 +94,8 @@ export default function App() {
             <Route path="distribution/new" element={<TransferFormPage />} />
 
             <Route path="pending" element={<PendingRequestsPage />} />
-            <Route path="register" element={<RegisterPage />} />
+            <Route path="hr-management" element={<HrManagementPage />} />
+            <Route path="estimated-costs" element={<EstimatedCostPage />} />
 
             <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
 

@@ -12,6 +12,15 @@ const userApi = {
 
   updateAdminAccountStatus: (id, isActive) =>
     axiosClient.patch(`/user/admin/accounts/${id}/status`, { isActive }),
+
+  getManagerAccounts: (includeDeactivated = false, branchId) =>
+    axiosClient.get('/user/manager/accounts', { params: { includeDeactivated, branchId } }),
+
+  createManagerAccount: (payload) =>
+    axiosClient.post('/user/manager/accounts', payload),
+
+  updateManagerAccountStatus: (id, isActive) =>
+    axiosClient.patch(`/user/manager/accounts/${id}/status`, { isActive }),
 };
 
 export default userApi;

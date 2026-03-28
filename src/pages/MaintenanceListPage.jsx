@@ -159,7 +159,7 @@ export default function MaintenanceListPage() {
     },
     { title: 'Loại', dataIndex: 'maintenanceType', key: 'type', render: (v) => LOAI_BT[v] || v },
     { title: 'Mô tả', dataIndex: 'description', key: 'desc', render: (v) => v || '—', ellipsis: true },
-    { title: 'Chi phí ước tính', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
+    { title: 'Chi phí ', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
     { title: 'Ngày yêu cầu', dataIndex: 'requestDate', key: 'date', render: (v) => v || '—' },
     { title: 'Ngày phê duyệt', dataIndex: 'approvedDate', key: 'approvedDate', render: (v) => v || '—' },
     { title: 'Người phê duyệt', dataIndex: 'approverName', key: 'approverName', render: (v) => v || '—' },

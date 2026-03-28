@@ -17,6 +17,7 @@ import {
   SafetyCertificateOutlined,
   AppstoreOutlined,
   TeamOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Header, Content } = Layout;
@@ -68,8 +69,9 @@ const NAV_ITEMS = [
   },
   { key: '/maintenance', icon: <ToolOutlined />, label: 'Bảo trì', roles: ['Operator', 'Branch Asset Accountant', 'Executive Management', 'Manager'] },
   { key: '/distribution', icon: <SwapOutlined />, label: 'Điều chuyển', roles: ['Branch Asset Accountant', 'Executive Management', 'Operator'] },
+  { key: '/estimated-costs', icon: <DollarOutlined />, label: 'Tổng chi phí dự kiến', roles: ['Branch Asset Accountant', 'Chief Accountant', 'Executive Management'] },
   { key: '/pending', icon: <FileSearchOutlined />, label: 'Yêu cầu chờ', roles: ['Executive Management'] },
-  { key: '/register', icon: <UserAddOutlined />, label: 'Quản lý tài khoản', roles: ['Admin'] },
+  { key: '/hr-management', icon: <TeamOutlined />, label: 'Quản lý nhân sự', roles: ['Manager', 'Admin', 'Executive Management'] },
   { key: '/proposals', icon: <CarOutlined />, label: 'Đề xuất xe', roles: null },
   { key: '/vehicle-stats', icon: <DashboardOutlined />, label: 'Thống kê khấu hao xe', roles: null },
 ];
