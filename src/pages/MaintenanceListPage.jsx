@@ -2,7 +2,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import maintenanceApi from '../api/maintenanceApi';
-import { Table, Tag, Button, Select, Space, Popconfirm, Modal, Form, Input, message } from 'antd';
+import { Table, Tag, Button, Select, Space, Popconfirm, Modal, Form, Input, InputNumber, DatePicker, message } from 'antd';
+import dayjs from 'dayjs';
 import { PlusOutlined, CheckOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const TRANG_THAI = {
@@ -31,12 +32,18 @@ const LOAI_BT = {
 
 export default function MaintenanceListPage() {
   const [form] = Form.useForm();
+  const [completeForm] = Form.useForm();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [approvalId, setApprovalId] = useState(null);
   const [approvalStatus, setApprovalStatus] = useState(null);
+  const [completeId, setCompleteId] = useState(null);
+  const [detailRecord, setDetailRecord] = useState(null);
   const [statusFilter, setStatusFilter] = useState(null);
   const [typeFilter, setTypeFilter] = useState(null);
 
@@ -123,12 +130,52 @@ export default function MaintenanceListPage() {
     }
   };
 
-  const handleComplete = async (id) => {
+  const openCompleteModal = (id, record) => {
+    setCompleteId(id);
+    completeForm.setFieldsValue({
+      actualCost: record?.actualCost ?? null,
+      completionNote: record?.completionNote ?? '',
+      completionDate: dayjs(),
+    });
+    setCompleteOpen(true);
+  };
+
+  const closeCompleteModal = () => {
+    setCompleteOpen(false);
+    setCompleteId(null);
+    completeForm.resetFields();
+  };
+
+  const openDetailModal = (record) => {
+    setDetailRecord(record);
+    setDetailOpen(true);
+  };
+
+  const closeDetailModal = () => {
+    setDetailOpen(false);
+    setDetailRecord(null);
+  };
+
+  const handleComplete = async () => {
+    if (!completeId) return;
     try {
-      await maintenanceApi.update(id, { status: 'Completed', completionDate: new Date().toISOString().split('T')[0] });
+      const values = await completeForm.validateFields();
+      setCompleting(true);
+      await maintenanceApi.update(completeId, {
+        status: 'Completed',
+        actualCost: values.actualCost,
+        completionNote: values.completionNote?.trim(),
+        completionDate: values.completionDate?.format('YYYY-MM-DD'),
+      });
       message.success('Đã hoàn thành bảo trì');
+      closeCompleteModal();
       loadData();
-    } catch (err) { message.error(err.response?.data?.message || 'Có lỗi'); }
+    } catch (err) {
+      if (err?.errorFields) return;
+      message.error(err.response?.data?.message || 'Có lỗi');
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const handleStart = async (id) => {
@@ -158,9 +205,12 @@ export default function MaintenanceListPage() {
       },
     },
     { title: 'Loại', dataIndex: 'maintenanceType', key: 'type', render: (v) => LOAI_BT[v] || v },
-    { title: 'Mô tả', dataIndex: 'description', key: 'desc', render: (v) => v || '—', ellipsis: true },
-    { title: 'Chi phí ', dataIndex: 'estimatedCost', key: 'cost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
+    { title: 'Mô tả yêu cầu', dataIndex: 'description', key: 'desc', render: (v) => v || '—', ellipsis: true },
+    { title: 'Kết quả sửa chữa', dataIndex: 'completionNote', key: 'completionNote', render: (v) => v || '—', ellipsis: true },
+    { title: 'Chi phí dự tính', dataIndex: 'estimatedCost', key: 'estimatedCost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
+    { title: 'Chi phí thực tế', dataIndex: 'actualCost', key: 'actualCost', render: (v) => (v ? `${v.toLocaleString('vi-VN')} đ` : '—') },
     { title: 'Ngày yêu cầu', dataIndex: 'requestDate', key: 'date', render: (v) => v || '—' },
+    { title: 'Ngày hoàn thành', dataIndex: 'completionDate', key: 'completionDate', render: (v) => v || '—' },
     { title: 'Ngày phê duyệt', dataIndex: 'approvedDate', key: 'approvedDate', render: (v) => v || '—' },
     { title: 'Người phê duyệt', dataIndex: 'approverName', key: 'approverName', render: (v) => v || '—' },
     {
@@ -168,9 +218,10 @@ export default function MaintenanceListPage() {
       render: (s) => <Tag color={TRANG_THAI_MAU[s] || 'default'}>{TRANG_THAI[s] || s}</Tag>,
     },
     {
-      title: 'Hành động', key: 'action', width: 260,
+      title: 'Hành động', key: 'action', width: 300,
       render: (_, m) => (
         <Space>
+          <Button size="small" onClick={() => openDetailModal(m)}>Xem chi tiết</Button>
           {isOperator && m.status === 'Pending' && (
             <Button size="small" onClick={() => navigate(`/maintenance/${m.id}`)}>Sửa</Button>
           )}
@@ -180,9 +231,9 @@ export default function MaintenanceListPage() {
             </Popconfirm>
           )}
           {isOperator && m.status === 'InProgress' && (
-            <Popconfirm title="Xác nhận đã sửa xong? Xe sẽ chuyển về trạng thái hoạt động." onConfirm={() => handleComplete(m.id)}>
-              <Button size="small" type="primary" icon={<CheckOutlined />}>Xác nhận hoàn thành</Button>
-            </Popconfirm>
+            <Button size="small" type="primary" icon={<CheckOutlined />} onClick={() => openCompleteModal(m.id, m)}>
+              Cập nhật chi phí
+            </Button>
           )}
           {isManager && m.status === 'Pending' && (
             <>
@@ -264,6 +315,92 @@ export default function MaintenanceListPage() {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={completeOpen}
+        title="Cập nhật chi phí thực tế"
+        okText="Lưu và hoàn thành"
+        cancelText="Huỷ"
+        onCancel={closeCompleteModal}
+        onOk={handleComplete}
+        okButtonProps={{ loading: completing }}
+      >
+        <Form form={completeForm} layout="vertical">
+          <Form.Item
+            name="actualCost"
+            label="Chi phí thực tế"
+            rules={[
+              { required: true, message: 'Vui lòng nhập chi phí thực tế' },
+              { type: 'number', min: 0, message: 'Chi phí thực tế phải lớn hơn hoặc bằng 0' },
+            ]}
+          >
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              placeholder="0"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="completionDate"
+            label="Ngày hoàn thành"
+            rules={[{ required: true, message: 'Vui lòng nhập ngày hoàn thành' }]}
+          >
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          </Form.Item>
+
+          <Form.Item
+            name="completionNote"
+            label="Mô tả sau bảo trì"
+            rules={[{ required: true, message: 'Vui lòng nhập mô tả sau bảo trì' }]}
+          >
+            <Input.TextArea
+              rows={4}
+              maxLength={1000}
+              showCount
+              placeholder="Ghi lại công việc đã sửa chữa, thay thế, kiểm tra..."
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={detailOpen}
+        title="Chi tiết bảo trì"
+        footer={null}
+        onCancel={closeDetailModal}
+        width={720}
+      >
+        {detailRecord && (
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div><strong>Xe:</strong> {detailRecord.vehicleLicensePlate || '-'}</div>
+              <div><strong>Loại:</strong> {LOAI_BT[detailRecord.maintenanceType] || detailRecord.maintenanceType || '-'}</div>
+              <div><strong>Trạng thái:</strong> {TRANG_THAI[detailRecord.status] || detailRecord.status || '-'}</div>
+              <div><strong>Người phê duyệt:</strong> {detailRecord.approverName || '-'}</div>
+              <div><strong>Ngày yêu cầu:</strong> {detailRecord.requestDate || '-'}</div>
+              <div><strong>Ngày hoàn thành:</strong> {detailRecord.completionDate || '-'}</div>
+              <div><strong>Chi phí dự tính:</strong> {detailRecord.estimatedCost == null ? '-' : `${Number(detailRecord.estimatedCost).toLocaleString('vi-VN')} đ`}</div>
+              <div><strong>Chi phí thực tế:</strong> {detailRecord.actualCost == null ? '-' : `${Number(detailRecord.actualCost).toLocaleString('vi-VN')} đ`}</div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Mô tả yêu cầu</div>
+              <div style={{ whiteSpace: 'pre-wrap', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
+                {detailRecord.description || '—'}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Kết quả sửa chữa</div>
+              <div style={{ whiteSpace: 'pre-wrap', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
+                {detailRecord.completionNote || '—'}
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
