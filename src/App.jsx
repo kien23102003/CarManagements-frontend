@@ -19,6 +19,7 @@ import CreateProposalPage from './pages/CreateProposalPage';
 import AssetCreatePage from './pages/AssetCreatePage';
 import VehicleAssignmentPage from './pages/VehicleAssignmentPage';
 import TripLogsPage from "./pages/TripLogsPage";
+import VehicleSchedulePage from "./pages/VehicleSchedulePage";
 import VerifySuccessPage from './pages/VerifySuccessPage';
 import VerifyFailedPage from './pages/VerifyFailedPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -100,6 +101,7 @@ export default function App() {
             <Route path="estimated-costs" element={<EstimatedCostPage />} />
 
             <Route path="vehicle-stats" element={<VehicleCostStatsPage />} />
+            <Route path="vehicle-schedules" element={<VehicleSchedulePage />} />
 
             <Route path="proposals" element={<ProposalListPage />} />
             <Route path="proposals/create" element={<CreateProposalPage />} />

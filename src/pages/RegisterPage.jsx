@@ -13,7 +13,6 @@ import {
   Switch,
   Modal,
   Form,
-  InputNumber,
   Select,
   Popconfirm,
   Alert,
@@ -69,7 +68,7 @@ export default function RegisterPage() {
         ? userApi.getAdminAccounts(include)
         : userApi.getManagerAccounts(include, isExecutive ? branchId : undefined);
 
-      const branchPromise = isExecutive ? assetApi.getBranches() : null;
+      const branchPromise = (isAdmin || isExecutive) ? assetApi.getBranches() : null;
 
       const [accountRes, branchRes] = await Promise.all([
         accountPromise,
@@ -82,6 +81,8 @@ export default function RegisterPage() {
       if (branchRes) {
         const branchData = branchRes.data?.data || branchRes.data || [];
         setBranches(branchData);
+      } else if (isManager && !isExecutive && user?.branchId) {
+        setBranches([{ id: user.branchId, name: user.branchName || `#${user.branchId}` }]);
       }
     } catch (err) {
       message.error(err?.response?.data?.message || 'Không thể tải danh sách tài khoản');
@@ -168,6 +169,10 @@ export default function RegisterPage() {
       String(a.id || '').includes(q),
     );
   }, [accounts, search]);
+
+  const branchOptions = useMemo(() => (
+    branches.map((b) => ({ value: b.id, label: b.name || `#${b.id}` }))
+  ), [branches]);
 
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 70, render: (v) => `#${v}` },
@@ -361,12 +366,14 @@ export default function RegisterPage() {
             <Input placeholder="0912345678" />
           </Form.Item>
 
-          <Form.Item name="branchId" label="Mã chi nhánh">
-            <InputNumber
-              style={{ width: '100%' }}
-              min={1}
-              placeholder="Nhập mã chi nhánh"
+          <Form.Item name="branchId" label="Chi nhánh">
+            <Select
+              allowClear={!isManager || isExecutive}
+              placeholder="Chọn chi nhánh"
+              options={branchOptions}
               disabled={isManager && !isExecutive}
+              showSearch
+              optionFilterProp="label"
             />
           </Form.Item>
 
