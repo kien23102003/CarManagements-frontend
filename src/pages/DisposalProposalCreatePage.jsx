@@ -35,6 +35,7 @@ export default function DisposalProposalCreatePage() {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [vehicles, setVehicles] = useState([]);
+  const selectedVehicleId = Form.useWatch('vehicleId', form);
 
   const loadVehicles = async () => {
     setLoadingVehicles(true);
@@ -140,6 +141,11 @@ export default function DisposalProposalCreatePage() {
           </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            {selectedVehicleId ? (
+              <Button onClick={() => navigate(`/disposal-proposals/vehicle/${selectedVehicleId}/insight?vehicleId=${selectedVehicleId}`)}>
+                Xem lịch sử sửa chữa và số km
+              </Button>
+            ) : null}
             <Button onClick={() => navigate('/disposal-proposals')}>Huỷ</Button>
             <Button type="primary" htmlType="submit" loading={submitting}>
               Tạo đề xuất

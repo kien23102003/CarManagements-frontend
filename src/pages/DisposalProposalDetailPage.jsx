@@ -179,6 +179,14 @@ export default function DisposalProposalDetailPage() {
           </Descriptions.Item>
         </Descriptions>
 
+        {proposal.vehicleId && (
+          <Space style={{ marginTop: 16 }}>
+            <Button onClick={() => navigate(`/disposal-proposals/vehicle/${proposal.vehicleId}/insight?proposalId=${proposal.id}`)}>
+              Xem lịch sử sửa chữa và số km
+            </Button>
+          </Space>
+        )}
+
         {hasActiveAccessories && (
           <Card size="small" title="Phụ kiện đang gắn trên xe" style={{ marginTop: 16 }}>
             {activeAccessories.map((item) => (
