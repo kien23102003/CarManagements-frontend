@@ -89,6 +89,7 @@ export default function VehicleSchedulePage() {
   const isAccountant = userRoles.some(
     (role) => role.toLowerCase() === "branch asset accountant",
   );
+  const canViewAcrossBranches = isExecutive || isManager;
   const isReadOnly = isExecutive || isAccountant || isManager;
   const canCreate = isOperator;
   const canReschedule = isOperator;
@@ -168,7 +169,7 @@ export default function VehicleSchedulePage() {
         vehicleId: filters.vehicleId,
         driverId: filters.driverId,
         seats: filters.seats,
-        branchId: isExecutive ? filters.branchId : undefined,
+        branchId: canViewAcrossBranches ? filters.branchId : undefined,
       };
       const res = await scheduleApi.getSchedules(params);
       setSchedules(res.data || []);
@@ -185,20 +186,20 @@ export default function VehicleSchedulePage() {
   }, []);
 
   useEffect(() => {
-    if (!isExecutive) return;
+    if (!canViewAcrossBranches) return;
     if (!branches.length) return;
     const preferred = user?.branchId || branches[0]?.id;
-    if (preferred && selectedBranchId !== preferred) {
+    if (!selectedBranchId && preferred) {
       setSelectedBranchId(preferred);
       setFilters((prev) => ({ ...prev, branchId: preferred }));
     }
-  }, [isExecutive, branches, user, selectedBranchId]);
+  }, [canViewAcrossBranches, branches, user, selectedBranchId]);
 
   useEffect(() => {
-    if (!isExecutive) return;
+    if (!canViewAcrossBranches) return;
     if (!selectedBranchId) return;
     createForm.setFieldsValue({ branchId: selectedBranchId });
-  }, [isExecutive, selectedBranchId, createForm]);
+  }, [canViewAcrossBranches, selectedBranchId, createForm]);
 
   useEffect(() => {
     loadSchedules();
@@ -214,12 +215,12 @@ export default function VehicleSchedulePage() {
     normalizeText(value) && normalizeText(value) === normalizeText(currentBranchName);
 
   const handleFindVehicles = async () => {
-    if (isExecutive && !selectedBranchId) {
+    if (canViewAcrossBranches && !selectedBranchId) {
       toast.error("Vui lòng chọn chi nhánh trước khi tìm xe trống.");
       return;
     }
     const fields = ["plannedRange", "modelId"];
-    if (isExecutive) fields.push("branchId");
+    if (canViewAcrossBranches) fields.push("branchId");
     const formValues = await createForm.validateFields(fields);
     const range = formValues.plannedRange;
     if (!range || range.length !== 2) return;
@@ -230,7 +231,7 @@ export default function VehicleSchedulePage() {
         start: toLocalISOString(range[0]),
         end: toLocalISOString(range[1]),
         modelId: formValues.modelId,
-        branchId: isExecutive ? (formValues.branchId || selectedBranchId) : undefined,
+        branchId: canViewAcrossBranches ? (formValues.branchId || selectedBranchId) : undefined,
       });
       setAvailableVehicles((res.data || []).filter(isEligibleVehicleForSchedule));
     } catch (error) {
@@ -243,12 +244,12 @@ export default function VehicleSchedulePage() {
   };
 
   const handleFindDrivers = async () => {
-    if (isExecutive && !selectedBranchId) {
+    if (canViewAcrossBranches && !selectedBranchId) {
       toast.error("Vui lòng chọn chi nhánh trước khi tìm tài xế trống.");
       return;
     }
     const fields = ["plannedRange"];
-    if (isExecutive) fields.push("branchId");
+    if (canViewAcrossBranches) fields.push("branchId");
     const formValues = await createForm.validateFields(fields);
     const range = formValues.plannedRange;
     if (!range || range.length !== 2) return;
@@ -258,7 +259,7 @@ export default function VehicleSchedulePage() {
       const res = await scheduleApi.getDriverAvailability({
         start: toLocalISOString(range[0]),
         end: toLocalISOString(range[1]),
-        branchId: isExecutive ? (formValues.branchId || selectedBranchId) : undefined,
+        branchId: canViewAcrossBranches ? (formValues.branchId || selectedBranchId) : undefined,
       });
       setAvailableDrivers(res.data || []);
     } catch (error) {
@@ -272,7 +273,7 @@ export default function VehicleSchedulePage() {
 
   const handleCreateSchedule = async () => {
     const values = await createForm.validateFields();
-    if (isExecutive && !(values.branchId || selectedBranchId)) {
+    if (canViewAcrossBranches && !(values.branchId || selectedBranchId)) {
       toast.error("Vui lòng chọn chi nhánh trước khi tạo lịch.");
       return;
     }
@@ -303,7 +304,7 @@ export default function VehicleSchedulePage() {
       plannedEndTime: toLocalISOString(end),
       origin,
       destination,
-      branchId: isExecutive ? values.branchId || selectedBranchId : undefined,
+      branchId: canViewAcrossBranches ? values.branchId || selectedBranchId : undefined,
     };
     try {
       await scheduleApi.createSchedule(payload);
@@ -414,7 +415,7 @@ export default function VehicleSchedulePage() {
       driverId: record.driverId,
     });
     setRescheduleOpen(true);
-    await loadRescheduleOptions(start, end, record.vehicleModelId, record.branchId);
+    await loadRescheduleOptions(start, end, null, record.branchId);
   };
 
   const loadRescheduleOptions = async (start, end, modelId, branchIdOverride) => {
@@ -424,13 +425,13 @@ export default function VehicleSchedulePage() {
         scheduleApi.getAvailability({
           start: toLocalISOString(start),
           end: toLocalISOString(end),
-          modelId,
-          branchId: isExecutive ? branchIdOverride : undefined,
+          modelId: modelId ?? undefined,
+          branchId: canViewAcrossBranches ? branchIdOverride : undefined,
         }),
         scheduleApi.getDriverAvailability({
           start: toLocalISOString(start),
           end: toLocalISOString(end),
-          branchId: isExecutive ? branchIdOverride : undefined,
+          branchId: canViewAcrossBranches ? branchIdOverride : undefined,
         }),
       ]);
       setRescheduleVehicles((vehicleRes.data || []).filter(isEligibleVehicleForSchedule));
@@ -644,7 +645,7 @@ export default function VehicleSchedulePage() {
           </div>
 
           <div className="schedule-filters">
-            {isExecutive && (
+            {canViewAcrossBranches && (
               <div className="schedule-filter">
                 <label>Chi nhánh</label>
                 <Select
@@ -820,7 +821,7 @@ export default function VehicleSchedulePage() {
               />
             </Form.Item>
 
-            {isExecutive && (
+            {canViewAcrossBranches && (
               <Form.Item
                 name="branchId"
                 label="Chi nhánh"
@@ -1043,7 +1044,7 @@ export default function VehicleSchedulePage() {
               disabledTime={getDisabledTime}
               onChange={(range) => {
                 if (range?.length === 2 && rescheduleTarget) {
-                  loadRescheduleOptions(range[0], range[1], rescheduleTarget.vehicleModelId, rescheduleTarget.branchId);
+                  loadRescheduleOptions(range[0], range[1], null, rescheduleTarget.branchId);
                 }
               }}
             />
@@ -1077,7 +1078,7 @@ export default function VehicleSchedulePage() {
                 loading={rescheduleLoading}
                 options={rescheduleDrivers.map((driver) => ({
                   value: driver.driverId,
-                  label: `${driver.driverName || ""} • ${driver.phone || ""}`.trim(),
+                  label: `${driver.driverName || `Tài xế #${driver.driverId}`} • ${driver.phone || ""}`.trim(),
                 }))}
               />
             </Form.Item>
