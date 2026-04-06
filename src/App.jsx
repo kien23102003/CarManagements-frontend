@@ -40,6 +40,7 @@ import VehicleAccessoryRequirementsPage from './pages/VehicleAccessoryRequiremen
 import DisposalProposalListPage from './pages/DisposalProposalListPage';
 import DisposalProposalDetailPage from './pages/DisposalProposalDetailPage';
 import DisposalProposalCreatePage from './pages/DisposalProposalCreatePage';
+import DisposalVehicleInsightPage from './pages/DisposalVehicleInsightPage';
 import VehicleDisposalHistoryPage from './pages/VehicleDisposalHistoryPage';
 import DriverListPage from './pages/DriverListPage';
 import DriverFormPage from './pages/DriverFormPage';
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="proposals/edit/:id" element={<CreateProposalPage />} />
             <Route path="disposal-proposals" element={<DisposalProposalListPage />} />
             <Route path="disposal-proposals/new" element={<DisposalProposalCreatePage />} />
+            <Route path="disposal-proposals/vehicle/:vehicleId/insight" element={<DisposalVehicleInsightPage />} />
             <Route path="disposal-proposals/:id" element={<DisposalProposalDetailPage />} />
 
             {/* NEW */}
